@@ -1,0 +1,15 @@
+# Swift / Xcode
+.DS_Store
+.build/
+Packages/
+Package.resolved
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Compiled application packages and installers
+BufferMenubar.app
+Buffer-Mac.dmg
+build/
+*.zip
+*.tar.gz
