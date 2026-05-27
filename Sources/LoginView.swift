@@ -6,41 +6,25 @@ struct BufferLogoView: View {
     @State private var animateSlabs = false
     
     var body: some View {
-        VStack(spacing: -14) {
-            // Top Slab - High contrast adaptive primary color
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary)
-                .frame(width: 48, height: 48)
-                .rotationEffect(.degrees(45))
-                .scaleEffect(x: 1.0, y: 0.5)
-                .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1.5)
-                .offset(y: animateSlabs && !reduceMotion ? -3 : 0)
-            
-            // Middle Slab - 85% opacity primary color
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.85))
-                .frame(width: 48, height: 48)
-                .rotationEffect(.degrees(45))
-                .scaleEffect(x: 1.0, y: 0.5)
-                .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1.5)
-            
-            // Bottom Slab - 70% opacity primary color
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.7))
-                .frame(width: 48, height: 48)
-                .rotationEffect(.degrees(45))
-                .scaleEffect(x: 1.0, y: 0.5)
-                .shadow(color: Color.black.opacity(0.16), radius: 2.5, x: 0, y: 2.5)
-                .offset(y: animateSlabs && !reduceMotion ? 3 : 0)
-        }
-        .padding(.vertical, 8)
-        .onAppear {
-            if !reduceMotion {
-                withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
-                    animateSlabs = true
+        Image(systemName: "square.stack.3d.up.fill")
+            .font(.system(size: 64, weight: .semibold))
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
+            .offset(y: animateSlabs && !reduceMotion ? -4 : 0)
+            .padding(.vertical, 8)
+            .onAppear {
+                if !reduceMotion {
+                    withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+                        animateSlabs = true
+                    }
                 }
             }
-        }
     }
 }
 
