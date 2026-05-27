@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct BufferLogoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -54,6 +55,43 @@ struct LoginView: View {
     
     var body: some View {
         VStack(spacing: 16) {
+            // Accessible Top Utility Bar for Preferences and Quit
+            HStack(spacing: 12) {
+                Spacer()
+                
+                Button(action: {
+                    if let delegate = NSApp.delegate as? AppDelegate {
+                        delegate.openSettingsWindow()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gearshape.fill")
+                        Text("Settings")
+                    }
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Text("|")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.3))
+                
+                Button(action: {
+                    NSApp.terminate(nil)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "power")
+                        Text("Quit")
+                    }
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 4)
+            
             Spacer()
             
             // 3-Slab Isometric Vector Buffer Logo
@@ -231,9 +269,10 @@ struct LoginView: View {
         
         Task {
             do {
-                _ = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: cleanToken)
+                let account = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: cleanToken)
                 await MainActor.run {
                     isLoading = false
+                    Storage.userEmail = account.email
                     onLoginSuccess(cleanToken)
                 }
             } catch {

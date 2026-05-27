@@ -45,9 +45,21 @@ struct Storage {
         }
     }
     
+    private static let userEmailKey = "authenticated_user_email"
+    
+    static var userEmail: String {
+        get {
+            return UserDefaults.standard.string(forKey: userEmailKey) ?? ""
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: userEmailKey)
+        }
+    }
+    
     static func clearAll() {
         UserDefaults.standard.removeObject(forKey: selectedChannelsKey)
         UserDefaults.standard.removeObject(forKey: draftTextKey)
         UserDefaults.standard.removeObject(forKey: cachedChannelsKey)
+        UserDefaults.standard.removeObject(forKey: userEmailKey)
     }
 }

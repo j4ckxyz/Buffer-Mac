@@ -184,6 +184,35 @@ struct SettingsView: View {
                             }
                             
                             GridRow {
+                                Text("Account:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    if KeychainHelper.getToken() == nil {
+                                        Button(action: {
+                                            if let delegate = NSApp.delegate as? AppDelegate {
+                                                delegate.showPopover()
+                                            }
+                                        }) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "person.crop.circle.badge.plus")
+                                                Text("Login to Buffer")
+                                            }
+                                            .font(.system(size: 10.5, weight: .semibold))
+                                        }
+                                        .buttonStyle(BorderedButtonStyle())
+                                    } else {
+                                        let email = Storage.userEmail
+                                        Text(email.isEmpty ? "Authenticated (Active Account)" : "Authenticated as \(email)")
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                            }
+                            
+                            GridRow {
                                 Text("App Info:")
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundColor(.primary)
@@ -241,14 +270,35 @@ struct SettingsView: View {
                                 .foregroundColor(.primary)
                                 .gridCellAnchor(.trailing)
                             
-                            if let result = testResult {
-                                Text(result)
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .foregroundColor(result.contains("Success") ? .green : .red)
-                            } else {
-                                Text(KeychainHelper.getToken() != nil ? "Authenticated" : "Not authenticated")
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundColor(KeychainHelper.getToken() != nil ? .green : .secondary)
+                            VStack(alignment: .leading, spacing: 6) {
+                                if let result = testResult {
+                                    Text(result)
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundColor(result.contains("Success") ? .green : .red)
+                                } else {
+                                    if KeychainHelper.getToken() == nil {
+                                        HStack(spacing: 8) {
+                                            Text("Not authenticated")
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                                .foregroundColor(.secondary)
+                                            
+                                            Button(action: {
+                                                if let delegate = NSApp.delegate as? AppDelegate {
+                                                    delegate.showPopover()
+                                                }
+                                            }) {
+                                                Text("Login")
+                                                    .font(.system(size: 10, weight: .semibold))
+                                            }
+                                            .buttonStyle(BorderedButtonStyle())
+                                        }
+                                    } else {
+                                        let email = Storage.userEmail
+                                        Text(email.isEmpty ? "Authenticated (Active Account)" : "Authenticated as \(email)")
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.green)
+                                    }
+                                }
                             }
                         }
                     }
@@ -290,6 +340,7 @@ struct SettingsView: View {
         let cleanToken = apiToken.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanToken.isEmpty {
             KeychainHelper.deleteToken()
+            Storage.userEmail = ""
         } else {
             KeychainHelper.saveToken(cleanToken)
         }
@@ -326,6 +377,7 @@ struct SettingsView: View {
                 let account = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: cleanToken)
                 await MainActor.run {
                     isTesting = false
+                    Storage.userEmail = account.email
                     testResult = "Success: Connected as \(account.email)"
                 }
             } catch {
