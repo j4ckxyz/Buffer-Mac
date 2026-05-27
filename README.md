@@ -1,15 +1,30 @@
-# Buffer-Mac
+# Buffer for Mac
 
-Buffer-Mac is a high-fidelity, premium macOS menu bar application designed for instant, distraction-free social media publishing. It acts as an ultra-fast global composer that links directly to your Buffer account.
+[![Download Buffer-Mac](https://img.shields.io/badge/Download-Buffer--Mac.dmg-blue?style=for-the-badge&logo=apple)](https://github.com/j4ckxyz/Buffer-Mac/releases/download/latest/Buffer-Mac.dmg)
+
+Buffer for Mac is a high-fidelity, premium macOS menu bar application designed for instant, distraction-free social media publishing. It acts as an ultra-fast global composer that links directly to your Buffer account.
 
 Designed specifically for power users, creators, and developers, it stays out of your way in the macOS menu bar and pops open instantly with a globally registered keyboard shortcut.
+
+> **Latest Installer**: [Download Buffer-Mac.dmg (Universal 2)](https://github.com/j4ckxyz/Buffer-Mac/releases/download/latest/Buffer-Mac.dmg) | [View Latest Release Page](https://github.com/j4ckxyz/Buffer-Mac/releases/tag/latest)
+
+---
+
+## System Requirements
+
+To ensure high performance and compliance with modern macOS standards, Buffer for Mac satisfies the following operational criteria:
+
+* **Supported Operating Systems**: macOS 13.0 (Ventura), macOS 14 (Sonoma), macOS 15 (Sequoia), or newer.
+* **Supported Architectures**: Native **Universal 2** binary supporting both **Apple Silicon** (M1/M2/M3/M4/Ultra) and **Intel** (64-bit) Macs.
+* **Network Credentials**: A free or paid Buffer account with a secure Personal Access Token (Bearer Token) generated from your [Buffer Settings Dashboard](https://publish.buffer.com/settings/api).
+* **Storage Footprint**: Light-weight background footprint under 15MB RAM.
 
 ---
 
 ## Key Features
 
 - **Global Shortcut & Hyperkey Support**: Open the composer instantly from anywhere using your choice of custom hotkey bindings, including full support for "Hyperkey ⌘⌥⌃⇧" remappers (Karabiner, Caps Lock remaps, etc.).
-- **Intelligent Anti-Spam Queue**: Stop spamming your followers' feeds! When enabled, the app automatically converts the "Post Now" action into an "Add to Queue" action if you have posted within the last 30 minutes.
+- **Smart Adaptive Posting**: Integrates smart layout switches that automatically set defaults depending on your posting frequency, with standard toggles for "Post Now" and "Add to Buffer Schedule" to prevent workflow confusion.
 - **Clipboard & Media Drag-and-Drop**: Easily copy and paste image/video files directly into your draft, or drag-and-drop files directly from Finder, Safari, or Photoshop.
 - **Fully Accessible Native Interface**: Clean, right-aligned preference grid with crisp high-contrast typography that beautifully adapts to native macOS Light Mode and Dark Mode system-wide.
 - **Smart Emoji Autocomplete**: Type :emojiname: inside the composer to get instant emoji autocompletion suggestions. Type : to see your most recently used emojis.
@@ -20,7 +35,7 @@ Designed specifically for power users, creators, and developers, it stays out of
 
 ## How It Works with the Buffer API
 
-Buffer-Mac connects directly to your Buffer account using a Personal Access Token. 
+Buffer for Mac connects directly to your Buffer account using a Personal Access Token. 
 
 ### How to obtain your token:
 1. Log in to your Buffer Dashboard at publish.buffer.com.
@@ -38,7 +53,7 @@ Buffer-Mac connects directly to your Buffer account using a Personal Access Toke
 Since this application is developed as an open-source utility and is not signed using a paid Apple Developer certificate, macOS Gatekeeper will show a warning upon first run. Installing and running is simple:
 
 ### Step 1: Download & Install the DMG
-1. Download the latest `Buffer-Mac.dmg` from the Releases tab of this repository.
+1. Download the latest `Buffer-Mac.dmg` using the link above.
 2. Double-click the downloaded `.dmg` file to mount it.
 3. Drag the BufferMenubar app icon into your Applications folder.
 
@@ -64,7 +79,7 @@ cd Buffer-Mac
 # Compile the project
 swift build -c release
 
-# Package the application and copy to /Applications
+# Compile the package and copy to /Applications
 ./build_app.sh
 
 # Or generate a native installer DMG
