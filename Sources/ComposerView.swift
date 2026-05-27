@@ -106,7 +106,7 @@ struct ComposerView: View {
                             
                             Text("\(selectedChannels.count) Profile\(selectedChannels.count > 1 ? "s" : "")")
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(.primary)
                         }
                         
                         Image(systemName: "chevron.down")
@@ -156,7 +156,7 @@ struct ComposerView: View {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(channel.name)
                                                     .font(.system(size: 12, weight: .medium, design: .rounded))
-                                                    .foregroundColor(.white)
+                                                    .foregroundColor(.primary)
                                                 Text(channel.service.capitalized)
                                                     .font(.system(size: 10))
                                                     .foregroundColor(.gray)
@@ -200,7 +200,7 @@ struct ComposerView: View {
                                 
                                 Text(clipboardMessage)
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                     .lineLimit(1)
                                 
                                 Spacer()
@@ -255,7 +255,7 @@ struct ComposerView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(preview.title)
                                         .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(.primary)
                                         .lineLimit(1)
                                     
                                     if let siteName = preview.siteName {
@@ -316,7 +316,7 @@ struct ComposerView: View {
                                 // Interactive Text Area
                                 TextEditor(text: $postText)
                                     .font(.system(size: 13, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                     .padding(.top, 12)
                                     .padding(.horizontal, 12)
                                     .frame(height: 120)
@@ -353,7 +353,7 @@ struct ComposerView: View {
                                                         
                                                         Image(systemName: "video.fill")
                                                             .font(.system(size: 18))
-                                                            .foregroundColor(.white)
+                                                            .foregroundColor(.secondary)
                                                     } else if let image = NSImage(contentsOf: item.localURL) {
                                                         Image(nsImage: image)
                                                             .resizable()
@@ -368,7 +368,7 @@ struct ComposerView: View {
                                                         
                                                         Image(systemName: "photo")
                                                             .font(.system(size: 18))
-                                                            .foregroundColor(.white)
+                                                            .foregroundColor(.secondary)
                                                     }
                                                     
                                                     // Progress overlay
@@ -476,13 +476,13 @@ struct ComposerView: View {
                                     .textFieldStyle(PlainTextFieldStyle())
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
-                                    .background(Color.black.opacity(0.2))
+                                    .background(Color.primary.opacity(0.06))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
                                     )
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                     .font(.system(size: 11, design: .rounded))
                                 }
                                 .padding(.horizontal, 24)
@@ -579,11 +579,11 @@ struct ComposerView: View {
                                                 .font(.system(size: 16))
                                             Text(":\(item.shortcode):")
                                                 .font(.system(size: 10, weight: .medium, design: .rounded))
-                                                .foregroundColor(.white.opacity(0.8))
+                                                .foregroundColor(.secondary)
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 6)
-                                        .background(Color.white.opacity(0.08))
+                                        .background(Color.primary.opacity(0.06))
                                         .cornerRadius(8)
                                     }
                                     .buttonStyle(ScaleButtonStyle())
@@ -593,7 +593,7 @@ struct ComposerView: View {
                             .padding(.bottom, 8)
                         }
                     }
-                    .background(Color.black.opacity(0.25))
+                    .background(Color.primary.opacity(0.04))
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -632,7 +632,7 @@ struct ComposerView: View {
                             Text(buttonLabelText)
                                 .font(.system(.body, design: .rounded))
                                 .fontWeight(.bold)
-                                .foregroundColor(.white)
+                                .foregroundColor(canSubmit ? .white : .secondary)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -640,7 +640,7 @@ struct ComposerView: View {
                     .background(
                         canSubmit
                         ? Color.blue
-                        : Color.white.opacity(0.1)
+                        : Color.primary.opacity(0.1)
                     )
                     .cornerRadius(10)
                 }
