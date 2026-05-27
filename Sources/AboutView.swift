@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AboutView: View {
     private var appVersion: String {
-        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.1"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "Version \(short) (Build \(build))"
     }
@@ -13,9 +13,9 @@ struct AboutView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundColor(Color.accentColor)
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 48, height: 48)
                 .padding(.top, 16)
             
             VStack(spacing: 3) {

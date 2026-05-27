@@ -40,6 +40,7 @@ struct ComposerView: View {
     @State private var emojiSearchQuery: String? = nil
     
     @ObservedObject private var publisher = BackgroundPublisher.shared
+    @ObservedObject private var updater = AppUpdater.shared
     
     struct Attachment: Identifiable {
         let id = UUID()
@@ -61,6 +62,9 @@ struct ComposerView: View {
                     }
                     Button(action: openAbout) {
                         Label("About Buffer Composer", systemImage: "info.circle")
+                    }
+                    Button(action: triggerCheckForUpdates) {
+                        Label("Check for Updates...", systemImage: "arrow.down.circle")
                     }
                     Divider()
                     Button(action: refreshChannels) {
@@ -184,6 +188,45 @@ struct ComposerView: View {
                         .background(Color.white.opacity(0.1))
                 }
                 .background(Color.black.opacity(0.1))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // MARK: - App Updater Status Banner
+            if let updateStatus = updater.statusMessage {
+                HStack(spacing: 8) {
+                    if updater.isChecking {
+                        ProgressView().scaleEffect(0.5).frame(width: 12, height: 12)
+                    } else {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.blue)
+                    }
+                    Text(updateStatus)
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    if !updater.isChecking {
+                        Button(action: {
+                            withAnimation {
+                                AppUpdater.shared.statusMessage = nil
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.blue.opacity(0.08))
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.blue.opacity(0.18), lineWidth: 1)
+                )
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
@@ -1357,6 +1400,10 @@ struct ComposerView: View {
         if let delegate = NSApp.delegate as? AppDelegate {
             delegate.openAboutWindow()
         }
+    }
+    
+    private func triggerCheckForUpdates() {
+        AppUpdater.shared.checkForUpdatesAndInstall(silentOnNoUpdate: false)
     }
     
     private func debugLog(_ message: String) {
