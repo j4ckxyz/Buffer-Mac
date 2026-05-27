@@ -16,17 +16,27 @@ echo "============================================="
 echo "   Building ${APP_NAME} for macOS"
 echo "============================================="
 
-# 1. Compile the SPM project
-echo "📦 Compiling Swift project in Release mode..."
-swift build -c release
+# 1. Compile the SPM project for both Apple Silicon and Intel architectures
+echo "📦 Compiling Swift project for Apple Silicon (arm64)..."
+swift build -c release --triple arm64-apple-macosx
 
-# 2. Check compiled binary
+echo "📦 Compiling Swift project for Intel (x86_64)..."
+swift build -c release --triple x86_64-apple-macosx
+
+# 2. Combine both architectures into a single Universal Binary using lipo
+echo "🔗 Combining binaries into a native Universal 2 Binary..."
+mkdir -p "${WORKSPACE_DIR}/.build/release"
+lipo -create -output "${WORKSPACE_DIR}/.build/release/${APP_NAME}" \
+    "${WORKSPACE_DIR}/.build/arm64-apple-macosx/release/${APP_NAME}" \
+    "${WORKSPACE_DIR}/.build/x86_64-apple-macosx/release/${APP_NAME}"
+
+# 3. Check compiled binary
 BINARY_PATH="${WORKSPACE_DIR}/.build/release/${APP_NAME}"
 if [ ! -f "${BINARY_PATH}" ]; then
     echo "❌ Error: Compiled binary not found at ${BINARY_PATH}"
     exit 1
 fi
-echo "✅ Compilation successful!"
+echo "✅ Universal compilation successful!"
 
 # 3. Create .app bundle structure
 echo "📁 Packaging application bundle..."
