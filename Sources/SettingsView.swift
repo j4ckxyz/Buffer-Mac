@@ -19,7 +19,7 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Premium Tabbed Toolbar (Accessible & Adaptive)
+            // MARK: - Premium Tabbed Toolbar (Accessible, FOSS Two-Tab Layout)
             HStack(spacing: 16) {
                 Spacer()
                 
@@ -31,10 +31,6 @@ struct SettingsView: View {
                     withAnimation { activeTab = "accounts" }
                 }
                 
-                TabButton(title: "Subscription", systemImage: "crown", isActive: activeTab == "subscription") {
-                    withAnimation { activeTab = "subscription" }
-                }
-                
                 Spacer()
             }
             .padding(.vertical, 12)
@@ -44,94 +40,189 @@ struct SettingsView: View {
             
             // MARK: - Tab Panels Content
             VStack {
-                Spacer(minLength: 0)
-                
                 if activeTab == "general" {
-                    // General tab - clean two-column grid with premium accessibility contrast
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
-                        GridRow {
-                            Text("Global Shortcut:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Picker("Modifier", selection: $hotkeyModifier) {
-                                        Text("Option ⌥").tag("Option")
-                                        Text("Command ⌘").tag("Command")
-                                        Text("Control ⌃").tag("Control")
-                                        Text("Shift ⇧").tag("Shift")
-                                        Divider()
-                                        Text("Cmd + Opt ⌘⌥").tag("Cmd + Opt")
-                                        Text("Cmd + Shift ⌘⇧").tag("Cmd + Shift")
-                                        Text("Opt + Shift ⌥⇧").tag("Opt + Shift")
-                                        Text("Ctrl + Opt ⌃⌥").tag("Ctrl + Opt")
-                                        Text("Ctrl + Cmd ⌃⌘").tag("Ctrl + Cmd")
-                                        Divider()
-                                        Text("Hyperkey ⌘⌥⌃⇧").tag("Hyperkey")
+                    // General tab - Scrollable grid to accommodate all general & utility configurations perfectly
+                    ScrollView {
+                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+                            GridRow {
+                                Text("Global Shortcut:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 8) {
+                                        Picker("Modifier", selection: $hotkeyModifier) {
+                                            Text("Option ⌥").tag("Option")
+                                            Text("Command ⌘").tag("Command")
+                                            Text("Control ⌃").tag("Control")
+                                            Text("Shift ⇧").tag("Shift")
+                                            Divider()
+                                            Text("Cmd + Opt ⌘⌥").tag("Cmd + Opt")
+                                            Text("Cmd + Shift ⌘⇧").tag("Cmd + Shift")
+                                            Text("Opt + Shift ⌥⇧").tag("Opt + Shift")
+                                            Text("Ctrl + Opt ⌃⌥").tag("Ctrl + Opt")
+                                            Text("Ctrl + Cmd ⌃⌘").tag("Ctrl + Cmd")
+                                            Divider()
+                                            Text("Hyperkey ⌘⌥⌃⇧").tag("Hyperkey")
+                                        }
+                                        .frame(width: 140)
+                                        .labelsHidden()
+                                        
+                                        Picker("Key", selection: $hotkeyKey) {
+                                            Text("Spacebar").tag("Space")
+                                            Text("Enter").tag("Enter")
+                                            Divider()
+                                            ForEach(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"], id: \.self) { letter in
+                                                Text(letter).tag(letter)
+                                            }
+                                            Divider()
+                                            ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], id: \.self) { num in
+                                                Text(num).tag(num)
+                                            }
+                                        }
+                                        .frame(width: 100)
+                                        .labelsHidden()
                                     }
-                                    .frame(width: 140)
-                                    .labelsHidden()
                                     
-                                    Picker("Key", selection: $hotkeyKey) {
-                                        Text("Spacebar").tag("Space")
-                                        Text("Enter").tag("Enter")
-                                        Divider()
-                                        ForEach(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"], id: \.self) { letter in
-                                            Text(letter).tag(letter)
+                                    Text("Hyperkey maps to ⌘⌥⌃⇧ (Cmd + Opt + Ctrl + Shift). Perfect for Karabiner / Caps Lock remappers.")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            
+                            GridRow {
+                                Text("Posting Mode:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                Picker("", selection: $defaultMode) {
+                                    Text("Post Now").tag("shareNow")
+                                    Text("Add to Queue").tag("addToQueue")
+                                }
+                                .pickerStyle(RadioGroupPickerStyle())
+                                .horizontalRadioGroupLayout()
+                                .labelsHidden()
+                            }
+                            
+                            GridRow {
+                                Text("Anti-Spam:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Toggle("Automatically defer to schedule if recently posted", isOn: $intelligentAntiSpam)
+                                        .toggleStyle(CheckboxToggleStyle())
+                                    
+                                    Text("Queue posts automatically if you recently shared a post (within 30m) to avoid spamming feeds.")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            
+                            Divider()
+                                .gridCellColumns(2)
+                                .padding(.vertical, 6)
+                            
+                            // Check for Updates Section
+                            GridRow {
+                                Text("Updates:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 8) {
+                                        Button(action: checkForUpdates) {
+                                            if isCheckingUpdates {
+                                                ProgressView().scaleEffect(0.5).frame(width: 12, height: 12)
+                                            } else {
+                                                Text("Check for Updates")
+                                            }
                                         }
-                                        Divider()
-                                        ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], id: \.self) { num in
-                                            Text(num).tag(num)
+                                        .buttonStyle(BorderedButtonStyle())
+                                        .disabled(isCheckingUpdates)
+                                        
+                                        if let downloadUrl = updateDownloadUrl {
+                                            Button("Download DMG") {
+                                                if let url = URL(string: downloadUrl) {
+                                                    NSWorkspace.shared.open(url)
+                                                }
+                                            }
+                                            .buttonStyle(BorderedButtonStyle())
                                         }
                                     }
-                                    .frame(width: 100)
-                                    .labelsHidden()
+                                    
+                                    if let result = updateCheckResult {
+                                        Text(result)
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(result.contains("New Version") ? .green : (result.contains("Failed") ? .red : .primary))
+                                    } else {
+                                        Text("Current Version: 1.0.0")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
-                                
-                                Text("Hyperkey maps to ⌘⌥⌃⇧ (Cmd + Opt + Ctrl + Shift). Perfect for Karabiner / Caps Lock remappers.")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
                             }
-                        }
-                        
-                        GridRow {
-                            Text("Posting Mode:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
                             
-                            Picker("", selection: $defaultMode) {
-                                Text("Post Now").tag("shareNow")
-                                Text("Add to Queue").tag("addToQueue")
-                            }
-                            .pickerStyle(RadioGroupPickerStyle())
-                            .horizontalRadioGroupLayout()
-                            .labelsHidden()
-                        }
-                        
-                        GridRow {
-                            Text("Anti-Spam:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Toggle("Automatically defer to schedule if recently posted", isOn: $intelligentAntiSpam)
-                                    .toggleStyle(CheckboxToggleStyle())
+                            GridRow {
+                                Text("System Cache:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
                                 
-                                Text("Queue posts automatically if you recently shared a post (within 30m) to avoid spamming feeds.")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Button("Reset Cache & Shortcuts") {
+                                        Storage.clearAll()
+                                        apiToken = ""
+                                        defaultMode = "shareNow"
+                                        hotkeyModifier = "Option"
+                                        hotkeyKey = "Space"
+                                        intelligentAntiSpam = true
+                                        
+                                        UserDefaults.standard.removeObject(forKey: "intelligent_antispam")
+                                        UserDefaults.standard.removeObject(forKey: "hotkey_keycode")
+                                        UserDefaults.standard.removeObject(forKey: "hotkey_carbon_modifiers")
+                                        UserDefaults.standard.set("Option", forKey: "hotkey_modifier")
+                                        UserDefaults.standard.set("Space", forKey: "hotkey_key")
+                                        
+                                        GlobalHotkeyManager.shared.registerCurrentShortcut()
+                                        testResult = "Caches and Token reset successfully."
+                                    }
+                                    .buttonStyle(BorderedButtonStyle())
+                                    
+                                    Text("Clears all cached Buffer profiles, saved text drafts, and resets global open shortcuts to ⌥ Option + Spacebar.")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            
+                            GridRow {
+                                Text("App Info:")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Buffer Menubar Composer")
+                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .foregroundColor(.primary)
+                                    Text("Version 1.0.0 (Free & Open Source)")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
                     }
-                    .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .move(edge: .leading)))
-                } else if activeTab == "accounts" {
+                } else {
                     // Accounts tab
                     Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
                         GridRow {
@@ -181,105 +272,9 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.horizontal, 24)
+                    .padding(.vertical, 24)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
-                } else {
-                    // Subscription / System tab
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 14) {
-                        GridRow {
-                            Text("System Cache:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                Button("Reset Cache & Shortcuts") {
-                                    Storage.clearAll()
-                                    apiToken = ""
-                                    defaultMode = "shareNow"
-                                    hotkeyModifier = "Option"
-                                    hotkeyKey = "Space"
-                                    intelligentAntiSpam = true
-                                    
-                                    UserDefaults.standard.removeObject(forKey: "intelligent_antispam")
-                                    UserDefaults.standard.removeObject(forKey: "hotkey_keycode")
-                                    UserDefaults.standard.removeObject(forKey: "hotkey_carbon_modifiers")
-                                    UserDefaults.standard.set("Option", forKey: "hotkey_modifier")
-                                    UserDefaults.standard.set("Space", forKey: "hotkey_key")
-                                    
-                                    GlobalHotkeyManager.shared.registerCurrentShortcut()
-                                    testResult = "Caches and Token reset successfully."
-                                }
-                                .buttonStyle(BorderedButtonStyle())
-                                
-                                Text("Clears all cached Buffer profiles, saved text drafts, and resets global open shortcuts to ⌥ Option + Spacebar.")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-                        
-                        // Check for Updates Section
-                        GridRow {
-                            Text("Updates:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 8) {
-                                    Button(action: checkForUpdates) {
-                                        if isCheckingUpdates {
-                                            ProgressView().scaleEffect(0.5).frame(width: 12, height: 12)
-                                        } else {
-                                            Text("Check for Updates")
-                                        }
-                                    }
-                                    .buttonStyle(BorderedButtonStyle())
-                                    .disabled(isCheckingUpdates)
-                                    
-                                    if let downloadUrl = updateDownloadUrl {
-                                        Button("Download DMG") {
-                                            if let url = URL(string: downloadUrl) {
-                                                NSWorkspace.shared.open(url)
-                                            }
-                                        }
-                                        .buttonStyle(BorderedButtonStyle())
-                                    }
-                                }
-                                
-                                if let result = updateCheckResult {
-                                    Text(result)
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(result.contains("New Version") ? .green : (result.contains("Failed") ? .red : .primary))
-                                } else {
-                                    Text("Current Version: 1.0.0")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        
-                        GridRow {
-                            Text("App Info:")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .gridCellAnchor(.trailing)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Buffer Menubar Composer")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                Text("Version 1.0.0 (Premium Pack)")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                
-                Spacer(minLength: 0)
             }
             .frame(maxHeight: .infinity)
             
