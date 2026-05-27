@@ -54,7 +54,7 @@ final class BufferAPI {
         debugLog("📥 Response received | HTTP Status: \(httpResponse.statusCode)")
         
         if httpResponse.statusCode == 401 {
-            debugLog("❌ Unauthorized (401) | Token is invalid or expired")
+            debugLog("❌ Unauthorised (401) | Token is invalid or expired")
             throw APIError.invalidToken
         }
         

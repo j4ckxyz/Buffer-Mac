@@ -8,8 +8,8 @@ struct AboutView: View {
     }
     
     // Replace with your final release URLs before publishing.
-    private let githubURL = URL(string: "https://github.com/jack/buffer-menubar")!
-    private let tangledURL = URL(string: "https://tangled.org/@jack/buffer-menubar")!
+    private let githubURL = URL(string: "https://github.com/j4ckxyz/Buffer-Mac")!
+    private let tangledURL = URL(string: "https://tangled.org/@jack/Buffer-Mac")!
     
     var body: some View {
         VStack(spacing: 12) {

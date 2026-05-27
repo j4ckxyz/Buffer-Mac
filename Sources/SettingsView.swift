@@ -248,7 +248,7 @@ struct SettingsView: View {
                                     .disabled(apiToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isTesting)
                                 }
                                 
-                                Text("Paste your personal Buffer access token to authorize the menubar app.")
+                                Text("Paste your personal Buffer access token to authorise the menubar app.")
                                     .font(.system(size: 10))
                                     .foregroundColor(.secondary)
                             }
