@@ -636,43 +636,81 @@ struct ComposerView: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
                 
-                // Segmented Post Mode Control
-                Picker("", selection: $postMode) {
-                    Text("Post Now").tag("shareNow")
-                    Text("Add to Queue").tag("addToQueue")
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
-                
-                Button(action: postToQueue) {
-                    HStack {
-                        if isPosting {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
-                        } else {
-                            Text(buttonLabelText)
-                                .font(.system(.body, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
+                if shouldForceQueueForAntiSpam {
+                    HStack(spacing: 12) {
+                        // Optional secondary "Post Now" button
+                        Button(action: postNowBypassingAntiSpam) {
+                            HStack {
+                                if isPosting {
+                                    ProgressView().scaleEffect(0.6)
+                                } else {
+                                    Text(isThreaded ? "Post Thread Now" : "Post Now")
+                                        .font(.system(.body, design: .rounded))
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.white.opacity(0.24), lineWidth: 1)
+                            )
                         }
+                        .buttonStyle(ScaleButtonStyle())
+                        .disabled(!canSubmit || isPosting)
+                        
+                        // Primary recommended "Add to Buffer Schedule" button
+                        Button(action: postToQueue) {
+                            HStack {
+                                if isPosting {
+                                    ProgressView().scaleEffect(0.6)
+                                } else {
+                                    Text(buttonLabelText)
+                                        .font(.system(.body, design: .rounded))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(canSubmit ? Color.blue : Color.white.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(ScaleButtonStyle())
+                        .disabled(!canSubmit || isPosting)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        canSubmit
-                        ? Color.blue
-                        : Color.white.opacity(0.1)
-                    )
-                    .cornerRadius(10)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                } else {
+                    // Standard single action button (decluttered and FOSS)
+                    Button(action: postToQueue) {
+                        HStack {
+                            if isPosting {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Text(buttonLabelText)
+                                    .font(.system(.body, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            canSubmit
+                            ? Color.blue
+                            : Color.white.opacity(0.1)
+                        )
+                        .cornerRadius(10)
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .disabled(!canSubmit || isPosting)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
                 }
-                .buttonStyle(ScaleButtonStyle())
-                .disabled(!canSubmit)
-                .animation(feedbackAnimation, value: canSubmit)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
             }
             .background(Color.black.opacity(0.12))
         }
@@ -996,6 +1034,15 @@ struct ComposerView: View {
         // Users can close it manually when they are done.
     }
     
+    private func postNowBypassingAntiSpam() {
+        let originalMode = postMode
+        postMode = "forceShareNow"
+        postToQueue()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.postMode = originalMode
+        }
+    }
+    
     // MARK: - Clipboard and Auto-Paste Utilities
     
     private func scheduleLinkPreviewUpdate(for text: String) {
@@ -1157,13 +1204,32 @@ struct ComposerView: View {
     
     // MARK: - Intelligent & Advanced Helper Methods
     
+    private var dynamicAntiSpamThreshold: Double {
+        let history = UserDefaults.standard.array(forKey: "post_timestamps_history") as? [Double] ?? []
+        guard history.count >= 3 else {
+            // Default anti-spam protection window is 30 minutes (1800 seconds)
+            return 1800
+        }
+        
+        var gaps: [Double] = []
+        for i in 0..<(history.count - 1) {
+            gaps.append(history[i+1] - history[i])
+        }
+        let totalGaps = gaps.reduce(0, +)
+        let averageGap = totalGaps / Double(gaps.count)
+        
+        // Cooldown threshold is 25% of their average gap, clamped between 2 mins and 30 mins
+        let computed = averageGap * 0.25
+        return min(max(computed, 120), 1800)
+    }
+    
     private var isRecentlyPosted: Bool {
         let lastPost = UserDefaults.standard.double(forKey: "last_post_timestamp")
         guard lastPost > 0 else { return false }
         let now = Date().timeIntervalSince1970
         let timePassed = now - lastPost
-        // Anti-spam protection window is 30 minutes (1800 seconds)
-        return timePassed < 1800
+        
+        return timePassed < dynamicAntiSpamThreshold
     }
     
     private var isIntelligentAntiSpamEnabled: Bool {
@@ -1178,11 +1244,11 @@ struct ComposerView: View {
     
     private var buttonLabelText: String {
         if shouldForceQueueForAntiSpam {
-            return isThreaded ? "Queue Thread to Buffer" : "Add to Buffer Schedule"
+            return isThreaded ? "Schedule Thread to Buffer" : "Add to Buffer Schedule"
         } else if postMode == "shareNow" {
             return isThreaded ? "Post Thread Now" : "Post Now to Buffer"
         } else {
-            return isThreaded ? "Queue Thread to Buffer" : "Add to Buffer Queue"
+            return isThreaded ? "Schedule Thread to Buffer" : "Add to Buffer Schedule"
         }
     }
     

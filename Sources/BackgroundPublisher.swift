@@ -24,16 +24,30 @@ final class BackgroundPublisher: ObservableObject {
     ) {
         isPosting = true
         
-        // Handle Intelligent Anti-Spam protection:
+        // Handle Intelligent Anti-Spam protection with dynamic threshold weighting:
         let isIntelligentAntiSpamEnabled = UserDefaults.standard.object(forKey: "intelligent_antispam") == nil 
             ? true 
             : UserDefaults.standard.bool(forKey: "intelligent_antispam")
         
+        let history = UserDefaults.standard.array(forKey: "post_timestamps_history") as? [Double] ?? []
+        var dynamicThreshold: Double = 1800
+        if history.count >= 3 {
+            var gaps: [Double] = []
+            for i in 0..<(history.count - 1) {
+                gaps.append(history[i+1] - history[i])
+            }
+            let totalGaps = gaps.reduce(0, +)
+            let averageGap = totalGaps / Double(gaps.count)
+            dynamicThreshold = min(max(averageGap * 0.25, 120), 1800)
+        }
+        
         let lastPost = UserDefaults.standard.double(forKey: "last_post_timestamp")
-        let isRecentlyPosted = lastPost > 0 && (Date().timeIntervalSince1970 - lastPost) < 1800
+        let isRecentlyPosted = lastPost > 0 && (Date().timeIntervalSince1970 - lastPost) < dynamicThreshold
         
         let finalPostMode: String
-        if isIntelligentAntiSpamEnabled && isRecentlyPosted && postMode == "shareNow" {
+        if postMode == "forceShareNow" {
+            finalPostMode = "shareNow"
+        } else if isIntelligentAntiSpamEnabled && isRecentlyPosted && postMode == "shareNow" {
             finalPostMode = "addToQueue"
         } else {
             finalPostMode = postMode
@@ -102,7 +116,15 @@ final class BackgroundPublisher: ObservableObject {
                     let msg = "\(actionVerb) to \(channelNamesStr)"
                     
                     // SAVE TIMESTAMP HERE ON SUCCESS!
-                    UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "last_post_timestamp")
+                    let now = Date().timeIntervalSince1970
+                    UserDefaults.standard.set(now, forKey: "last_post_timestamp")
+                    
+                    var history = UserDefaults.standard.array(forKey: "post_timestamps_history") as? [Double] ?? []
+                    history.append(now)
+                    if history.count > 5 {
+                        history.removeFirst()
+                    }
+                    UserDefaults.standard.set(history, forKey: "post_timestamps_history")
                     
                     self.lastStatusMessage = msg
                     self.statusIsError = false
