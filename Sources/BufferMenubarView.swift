@@ -8,8 +8,8 @@ struct BufferMenubarView: View {
     
     var body: some View {
         ZStack {
-            // High-fidelity native macOS popover frosted glass vibrancy backdrop
-            VisualEffectView(material: .popover, blendingMode: .behindWindow)
+            // Hard solid background that adapts perfectly to light and dark modes
+            Color(NSColor.windowBackgroundColor)
                 .edgesIgnoringSafeArea(.all)
             
             if isChecking {

@@ -7,6 +7,7 @@ set -e
 
 APP_NAME="BufferMenubar"
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_VERSION="$(cat "${WORKSPACE_DIR}/VERSION" | xargs)"
 APP_BUNDLE="${WORKSPACE_DIR}/${APP_NAME}.app"
 CONTENTS_DIR="${APP_BUNDLE}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
@@ -68,7 +69,7 @@ cat <<EOF > "${CONTENTS_DIR}/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
@@ -88,12 +89,9 @@ echo "   🎉 ${APP_NAME}.app successfully built!"
 echo "============================================="
 echo "Path: ${APP_BUNDLE}"
 echo ""
-echo "🚀 Copying ${APP_NAME}.app to /Applications..."
-rm -rf "/Applications/${APP_NAME}.app"
-cp -R "${APP_BUNDLE}" "/Applications/"
-echo "✅ Copied to /Applications successfully!"
+echo "🚀 Skipping copy to /Applications (Local testing mode active!)"
 echo ""
-echo "To launch the app:"
-echo "  1. Double-click '/Applications/${APP_NAME}.app' in Finder or your Applications folder"
-echo "  2. Or run: open '/Applications/${APP_NAME}.app'"
+echo "To launch the app locally:"
+echo "  1. Double-click '${APP_BUNDLE}' in Finder"
+echo "  2. Or run: open '${APP_BUNDLE}'"
 echo "============================================="

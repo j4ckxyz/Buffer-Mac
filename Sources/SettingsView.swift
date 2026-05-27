@@ -145,7 +145,7 @@ struct SettingsView: View {
                                             .font(.system(size: 10, weight: .bold))
                                             .foregroundColor(result.contains("New Version") ? .green : (result.contains("Failed") ? .red : .primary))
                                     } else {
-                                        Text("Current Version: 1.0.0")
+                                        Text("Current Version: \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
                                             .font(.system(size: 10))
                                             .foregroundColor(.secondary)
                                     }
@@ -193,7 +193,7 @@ struct SettingsView: View {
                                     Text("Buffer Menubar Composer")
                                         .font(.system(size: 11, weight: .bold, design: .rounded))
                                         .foregroundColor(.primary)
-                                    Text("Version 1.0.0 (Free & Open Source)")
+                                    Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0") (Free & Open Source)")
                                         .font(.system(size: 10))
                                         .foregroundColor(.secondary)
                                 }
@@ -388,7 +388,7 @@ struct SettingsView: View {
                 await MainActor.run {
                     isCheckingUpdates = false
                     let latestTag = release.tag_name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "v", with: "")
-                    let currentTag = "1.0.0"
+                    let currentTag = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
                     
                     if latestTag.compare(currentTag, options: .numeric) == .orderedDescending {
                         updateCheckResult = "New Version \(release.tag_name) Available!"
