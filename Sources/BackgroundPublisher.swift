@@ -13,18 +13,27 @@ final class BackgroundPublisher: ObservableObject {
     
     init() {}
     
+    @discardableResult
     func publish(
         texts: [String],
         mediaItems: [[String: String]],
+        linkAsset: [String: String]?,
         isVideo: Bool,
         selectedChannels: [String],
         channels: [BufferAPI.ChannelsResponse.Channel],
         postMode: String,
         token: String
-    ) {
+    ) -> Bool {
+        guard !isPosting else {
+            debugLog("Ignored duplicate publish request while a publish is already in progress.")
+            return false
+        }
+        
         isPosting = true
         
         let finalPostMode = (postMode == "forceShareNow") ? "shareNow" : postMode
+        let expectedCreatePostRequests = texts.count * selectedChannels.count
+        debugLog("Starting publish | Buffer createPost requests: \(expectedCreatePostRequests) | Segments: \(texts.count) | Profiles: \(selectedChannels.count) | Media items: \(mediaItems.count) | Link asset: \(linkAsset == nil ? "none" : "available")")
         
         let actionWord = finalPostMode == "shareNow" ? "Posting" : "Queueing"
         let threadSuffix = texts.count > 1 ? " (Thread)" : ""
@@ -51,11 +60,14 @@ final class BackgroundPublisher: ObservableObject {
                         // For subsequent segments, do not attach the same media.
                         let segmentMedia = index == 0 ? mediaItems : []
                         let segmentIsVideo = index == 0 ? isVideo : false
+                        let channel = channels.first(where: { $0.id == channelId })
+                        let segmentLinkAsset = index == 0 && segmentMedia.isEmpty && channel?.service.lowercased() == "bluesky" ? linkAsset : nil
                         
                         try await BufferAPI.shared.createPost(
                             channelId: channelId,
                             text: textSegment,
                             mediaItems: segmentMedia,
+                            linkAsset: segmentLinkAsset,
                             isVideo: segmentIsVideo,
                             mode: finalPostMode,
                             token: token
@@ -63,7 +75,7 @@ final class BackgroundPublisher: ObservableObject {
                         
                         if index == 0 {
                             completedCount += 1
-                            if let channel = channels.first(where: { $0.id == channelId }) {
+                            if let channel {
                                 successfulChannels.append(channel.name)
                             }
                         }
@@ -121,6 +133,8 @@ final class BackgroundPublisher: ObservableObject {
                 }
             }
         }
+        
+        return true
     }
     
     private func showSystemNotification(title: String, message: String) {
@@ -136,5 +150,11 @@ final class BackgroundPublisher: ObservableObject {
             let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
             center.add(request)
         }
+    }
+    
+    private func debugLog(_ message: String) {
+        #if DEBUG
+        print("[BackgroundPublisher] \(message)")
+        #endif
     }
 }

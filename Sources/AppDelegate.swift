@@ -29,7 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem.button {
-            if #available(macOS 11.0, *) {
+            if let appIcon = NSImage(named: "AppIcon") {
+                appIcon.size = NSSize(width: 18, height: 18)
+                appIcon.isTemplate = false
+                button.image = appIcon
+            } else if #available(macOS 11.0, *) {
                 button.image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "Buffer Composer")
             } else {
                 button.title = "⚡️"
@@ -210,4 +214,3 @@ final class EventMonitor {
         monitor = nil
     }
 }
-

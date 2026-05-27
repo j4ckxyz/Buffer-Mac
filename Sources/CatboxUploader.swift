@@ -115,6 +115,7 @@ final class CatboxUploader: NSObject, URLSessionTaskDelegate {
             }
             
             self.progressHandlers[task.taskIdentifier] = progressHandler
+            self.debugLog("📡 Sending request | Operation: CatboxUpload/task:\(task.taskIdentifier)")
             task.resume()
         }
     }

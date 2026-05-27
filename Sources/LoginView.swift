@@ -6,15 +6,7 @@ struct BufferLogoView: View {
     @State private var animateSlabs = false
     
     var body: some View {
-        Image(systemName: "square.stack.3d.up.fill")
-            .font(.system(size: 64, weight: .semibold))
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [Color.blue, Color.blue.opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+        logoImage
             .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
             .offset(y: animateSlabs && !reduceMotion ? -4 : 0)
             .padding(.vertical, 8)
@@ -25,6 +17,26 @@ struct BufferLogoView: View {
                     }
                 }
             }
+    }
+    
+    @ViewBuilder
+    private var logoImage: some View {
+        if let appIcon = NSImage(named: "AppIcon") {
+            Image(nsImage: appIcon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 78, height: 78)
+        } else {
+            Image(systemName: "square.stack.3d.up.fill")
+                .font(.system(size: 64, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.blue, Color.blue.opacity(0.8)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
     }
 }
 

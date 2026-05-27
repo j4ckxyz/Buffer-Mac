@@ -13,6 +13,8 @@ final class AppUpdater: ObservableObject {
     
     struct GitHubRelease: Codable {
         let tag_name: String
+        let name: String?
+        let body: String?
         let html_url: String
         let assets: [GitHubAsset]
     }
@@ -46,23 +48,27 @@ final class AppUpdater: ObservableObject {
                 }
                 
                 let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
-                let latestTag = release.tag_name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "v", with: "")
+                guard let latestVersion = Self.versionString(from: release) else {
+                    await updateStatus("No updates available")
+                    return
+                }
+                
                 let currentTag = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.1"
                 
-                if latestTag.compare(currentTag, options: .numeric) == .orderedDescending {
+                if latestVersion.compare(currentTag, options: .numeric) == .orderedDescending {
                     await MainActor.run {
-                        self.latestVersionString = release.tag_name
+                        self.latestVersionString = latestVersion
                         self.updateAvailable = true
                     }
                     
                     if let dmgAsset = release.assets.first(where: { $0.name.lowercased().hasSuffix(".dmg") }) {
-                        await updateStatus("Downloading version \(release.tag_name)...")
+                        await updateStatus("Downloading version \(latestVersion)...", isComplete: false)
                         try await downloadAndInstallDMG(from: dmgAsset.browser_download_url)
                     } else {
                         await updateStatus("No DMG installer found in release assets", isErr: true)
                     }
                 } else {
-                    await updateStatus(silentOnNoUpdate ? nil : "You are up to date! (Version \(currentTag))")
+                    await updateStatus(silentOnNoUpdate ? nil : "No updates available")
                 }
             } catch {
                 await updateStatus("Failed to check: \(error.localizedDescription)", isErr: true)
@@ -70,11 +76,48 @@ final class AppUpdater: ObservableObject {
         }
     }
     
-    private func updateStatus(_ msg: String?, isErr: Bool = false) async {
+    private func updateStatus(_ msg: String?, isErr: Bool = false, isComplete: Bool = true) async {
         await MainActor.run {
-            self.isChecking = false
+            self.isChecking = !isComplete
             self.statusMessage = msg
         }
+    }
+    
+    private static func versionString(from release: GitHubRelease) -> String? {
+        if let tagVersion = normalizedVersionString(release.tag_name) {
+            return tagVersion
+        }
+        
+        if let bodyVersion = firstVersionString(in: release.body) {
+            return bodyVersion
+        }
+        
+        return firstVersionString(in: release.name)
+    }
+    
+    private static func normalizedVersionString(_ rawValue: String) -> String? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutPrefix = trimmed.hasPrefix("v") || trimmed.hasPrefix("V") ? String(trimmed.dropFirst()) : trimmed
+        let parts = withoutPrefix.split(separator: ".")
+        guard (2...3).contains(parts.count), parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else {
+            return nil
+        }
+        return withoutPrefix
+    }
+    
+    private static func firstVersionString(in text: String?) -> String? {
+        guard let text else { return nil }
+        let pattern = #"\b(?:Version\s+)?([0-9]+(?:\.[0-9]+){1,2})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, options: [], range: range),
+              let versionRange = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[versionRange])
     }
     
     private func downloadAndInstallDMG(from urlString: String) async throws {
@@ -91,41 +134,109 @@ final class AppUpdater: ObservableObject {
         let (downloadURL, _) = try await URLSession.shared.download(from: url)
         try FileManager.default.moveItem(at: downloadURL, to: localDMGURL)
         
-        await updateStatus("Mounting installer...")
+        await updateStatus("Mounting installer...", isComplete: false)
         
-        let mountProcess = Process()
-        mountProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-        mountProcess.arguments = ["mount", "-nobrowse", "-readonly", localDMGURL.path]
-        try mountProcess.run()
-        mountProcess.waitUntilExit()
+        let mountURL = try await mountDMG(at: localDMGURL)
+        var didDetach = false
+        defer {
+            if !didDetach {
+                _ = try? runProcess(executable: "/usr/bin/hdiutil", arguments: ["detach", mountURL.path, "-force"])
+            }
+        }
         
-        guard mountProcess.terminationStatus == 0 else {
-            await updateStatus("Failed to mount installer DMG", isErr: true)
+        let sourceAppURL = mountURL.appendingPathComponent("BufferMenubar.app")
+        guard FileManager.default.fileExists(atPath: sourceAppURL.path) else {
+            await updateStatus("Installer did not contain BufferMenubar.app", isErr: true)
             return
         }
         
-        await updateStatus("Installing and restarting...")
+        let stagedAppURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("BufferMenubar-\(UUID().uuidString)")
+            .appendingPathExtension("app")
+        try? FileManager.default.removeItem(at: stagedAppURL)
+        try FileManager.default.copyItem(at: sourceAppURL, to: stagedAppURL)
+        _ = try runProcess(executable: "/usr/bin/hdiutil", arguments: ["detach", mountURL.path, "-force"])
+        didDetach = true
         
-        let currentAppPath = Bundle.main.bundlePath
-        let volumePath = "/Volumes/Buffer-Mac"
-        let sourceAppPath = "\(volumePath)/BufferMenubar.app"
-        
-        let script = """
-        sleep 1.2
-        rm -rf "\(currentAppPath)"
-        cp -R "\(sourceAppPath)" "\(currentAppPath)"
-        hdiutil detach "\(volumePath)" -force
-        open "\(currentAppPath)"
-        """
-        
-        let restartProcess = Process()
-        restartProcess.executableURL = URL(fileURLWithPath: "/bin/bash")
-        restartProcess.arguments = ["-c", script]
-        
-        try restartProcess.run()
+        await updateStatus("Installing and restarting...", isComplete: false)
+        try launchReplacementScript(stagedAppURL: stagedAppURL, targetAppURL: URL(fileURLWithPath: Bundle.main.bundlePath))
         
         await MainActor.run {
             NSApp.terminate(nil)
+        }
+    }
+    
+    private func mountDMG(at dmgURL: URL) async throws -> URL {
+        let output = try runProcess(
+            executable: "/usr/bin/hdiutil",
+            arguments: ["attach", "-plist", "-nobrowse", "-readonly", dmgURL.path]
+        )
+        
+        guard let plist = try PropertyListSerialization.propertyList(from: output, options: [], format: nil) as? [String: Any],
+              let entities = plist["system-entities"] as? [[String: Any]],
+              let mountPoint = entities.compactMap({ $0["mount-point"] as? String }).first else {
+            throw UpdateError.mountPointNotFound
+        }
+        
+        return URL(fileURLWithPath: mountPoint)
+    }
+    
+    private func launchReplacementScript(stagedAppURL: URL, targetAppURL: URL) throws {
+        let script = """
+        set -e
+        staged_app="$1"
+        target_app="$2"
+        target_parent="$(dirname "$target_app")"
+        target_name="$(basename "$target_app")"
+        replacement_app="${target_parent}/.${target_name}.updating"
+        
+        sleep 1.2
+        rm -rf "$replacement_app"
+        mv "$staged_app" "$replacement_app"
+        rm -rf "$target_app"
+        mv "$replacement_app" "$target_app"
+        open "$target_app"
+        """
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", script, "buffer-menubar-updater", stagedAppURL.path, targetAppURL.path]
+        try process.run()
+    }
+    
+    private func runProcess(executable: String, arguments: [String]) throws -> Data {
+        let process = Process()
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        
+        try process.run()
+        process.waitUntilExit()
+        
+        let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        if process.terminationStatus == 0 {
+            return output
+        }
+        
+        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        let errorMessage = String(data: errorData, encoding: .utf8) ?? "Process failed"
+        throw UpdateError.processFailed(errorMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+    
+    enum UpdateError: LocalizedError {
+        case mountPointNotFound
+        case processFailed(String)
+        
+        var errorDescription: String? {
+            switch self {
+            case .mountPointNotFound:
+                return "Could not find the mounted installer volume."
+            case .processFailed(let message):
+                return message.isEmpty ? "Installer command failed." : message
+            }
         }
     }
 }

@@ -16,6 +16,13 @@ struct SettingsView: View {
     @State private var updateDownloadUrl: String? = nil
     @State private var isCheckingUpdates = false
     
+    private struct GitHubRelease: Codable {
+        let tag_name: String
+        let name: String?
+        let body: String?
+        let html_url: String
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Premium Tabbed Toolbar (Accessible, FOSS Two-Tab Layout)
@@ -430,23 +437,22 @@ struct SettingsView: View {
                     return
                 }
                 
-                struct GitHubRelease: Codable {
-                    let tag_name: String
-                    let html_url: String
-                }
-                
                 let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
                 
                 await MainActor.run {
                     isCheckingUpdates = false
-                    let latestTag = release.tag_name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "v", with: "")
+                    guard let latestTag = versionString(from: release) else {
+                        updateCheckResult = "No updates available"
+                        return
+                    }
+                    
                     let currentTag = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
                     
                     if latestTag.compare(currentTag, options: .numeric) == .orderedDescending {
-                        updateCheckResult = "New Version \(release.tag_name) Available!"
+                        updateCheckResult = "New Version \(latestTag) Available!"
                         updateDownloadUrl = release.html_url
                     } else {
-                        updateCheckResult = "You are up to date! (Version \(currentTag))"
+                        updateCheckResult = "No updates available"
                     }
                 }
             } catch {
@@ -456,6 +462,43 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+    
+    private func versionString(from release: GitHubRelease) -> String? {
+        if let tagVersion = normalizedVersionString(release.tag_name) {
+            return tagVersion
+        }
+        
+        if let bodyVersion = firstVersionString(in: release.body) {
+            return bodyVersion
+        }
+        
+        return firstVersionString(in: release.name)
+    }
+    
+    private func normalizedVersionString(_ rawValue: String) -> String? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutPrefix = trimmed.hasPrefix("v") || trimmed.hasPrefix("V") ? String(trimmed.dropFirst()) : trimmed
+        let parts = withoutPrefix.split(separator: ".")
+        guard (2...3).contains(parts.count), parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else {
+            return nil
+        }
+        return withoutPrefix
+    }
+    
+    private func firstVersionString(in text: String?) -> String? {
+        guard let text else { return nil }
+        let pattern = #"\b(?:Version\s+)?([0-9]+(?:\.[0-9]+){1,2})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, options: [], range: range),
+              let versionRange = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[versionRange])
     }
 }
 

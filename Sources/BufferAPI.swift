@@ -24,7 +24,12 @@ final class BufferAPI {
     
     // MARK: - Generic GraphQL Requester
     
-    private func performGraphQLQuery<R: Decodable>(query: String, variables: [String: Any] = [:], token: String) async throws -> R {
+    private func performGraphQLQuery<R: Decodable>(
+        operationName: String,
+        query: String,
+        variables: [String: Any] = [:],
+        token: String
+    ) async throws -> R {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -35,8 +40,7 @@ final class BufferAPI {
             "variables": variables
         ]
         
-        let opName = query.components(separatedBy: "\n").first(where: { $0.contains("query") || $0.contains("mutation") }) ?? "GraphQL Operation"
-        debugLog("📡 Sending request | Operation: \(opName.trimmingCharacters(in: .whitespaces)) | Variable keys: \(Array(variables.keys))")
+        debugLog("📡 Sending request | Operation: \(operationName) | Variable keys: \(Array(variables.keys))")
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
             debugLog("❌ Failed to serialize JSON payload")
@@ -111,7 +115,11 @@ final class BufferAPI {
         }
         """
         
-        let response: AccountVerifyResponse = try await performGraphQLQuery(query: query, token: token)
+        let response: AccountVerifyResponse = try await performGraphQLQuery(
+            operationName: "VerifyToken/account",
+            query: query,
+            token: token
+        )
         return response.account
     }
     
@@ -137,7 +145,12 @@ final class BufferAPI {
         }
         """
         
-        let response: ChannelsResponse = try await performGraphQLQuery(query: query, variables: [:], token: token)
+        let response: ChannelsResponse = try await performGraphQLQuery(
+            operationName: "FetchChannels/org:\(orgId)",
+            query: query,
+            variables: [:],
+            token: token
+        )
         return response.channels
     }
     
@@ -160,6 +173,7 @@ final class BufferAPI {
         channelId: String,
         text: String,
         mediaItems: [[String: String]], // List of items, each containing ["url": "...", "altText": "..."]
+        linkAsset: [String: String]? = nil,
         isVideo: Bool,
         mode: String = "shareNow", // Default to immediate sharing
         token: String
@@ -206,6 +220,23 @@ final class BufferAPI {
             }
         }
         
+        if let linkAsset, let url = linkAsset["url"], !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            var linkDict: [String: Any] = ["url": url]
+            if let title = linkAsset["title"], !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                linkDict["title"] = title
+            }
+            if let description = linkAsset["description"], !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                linkDict["description"] = description
+            }
+            if let thumbnailUrl = linkAsset["thumbnailUrl"], !thumbnailUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                linkDict["thumbnailUrl"] = thumbnailUrl
+            }
+            
+            assetsPayload.append([
+                "link": linkDict
+            ])
+        }
+        
         var inputVariables: [String: Any] = [
             "channelId": channelId,
             "text": text,
@@ -218,6 +249,7 @@ final class BufferAPI {
         }
         
         let response: CreatePostResponse = try await performGraphQLQuery(
+            operationName: "CreatePost/channel:\(channelId)/mode:\(mode)",
             query: query,
             variables: ["input": inputVariables],
             token: token

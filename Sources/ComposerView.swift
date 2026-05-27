@@ -318,8 +318,8 @@ struct ComposerView: View {
                                 Spacer(minLength: 0)
                             }
                             
-                            if shouldAutoAttachLinkCardImage {
-                                Text("Bluesky card assist: this OG/Twitter image will be sent as media fallback with your link.")
+                            if shouldShowBlueskyLinkCardAssist {
+                                Text("Bluesky card assist: this link will be sent as a rich card instead of a photo attachment.")
                                     .font(.system(size: 9, design: .rounded))
                                     .foregroundColor(.gray)
                                     .lineLimit(2)
@@ -751,8 +751,12 @@ struct ComposerView: View {
         }
     }
     
-    private var shouldAutoAttachLinkCardImage: Bool {
+    private var shouldShowBlueskyLinkCardAssist: Bool {
         isBlueskySelected && (linkPreview?.imageURL != nil)
+    }
+    
+    private var shouldFetchLinkPreview: Bool {
+        isBlueskySelected && attachments.isEmpty
     }
     
     private var feedbackAnimation: Animation? {
@@ -869,6 +873,7 @@ struct ComposerView: View {
             selectedChannels.insert(id)
         }
         Storage.selectedChannelIds = selectedChannels
+        scheduleLinkPreviewUpdate(for: postText)
     }
     
     // MARK: - Attachment Manager & Drag/Drop
@@ -931,6 +936,7 @@ struct ComposerView: View {
     private func addMediaAttachment(url: URL, isVideo: Bool) {
         let attachment = Attachment(localURL: url, uploadedURL: nil, progress: 0.0, isVideo: isVideo)
         attachments.append(attachment)
+        scheduleLinkPreviewUpdate(for: postText)
         
         let itemId = attachment.id
         
@@ -964,12 +970,17 @@ struct ComposerView: View {
     
     private func removeAttachment(_ id: UUID) {
         attachments.removeAll(where: { $0.id == id })
+        scheduleLinkPreviewUpdate(for: postText)
     }
     
     // MARK: - Post Execution
     
     private func postToQueue() {
-        guard let token = KeychainHelper.getToken(), canSubmit else { return }
+        guard let token = KeychainHelper.getToken(), canSubmit, !isPosting, !publisher.isPosting else { return }
+        
+        isPosting = true
+        postingStatus = "Preparing post..."
+        statusIsError = false
         
         // Build mediaItems matching [["url": "...", "altText": "..."]]
         var mediaItems: [[String: String]] = []
@@ -981,16 +992,7 @@ struct ComposerView: View {
             ])
         }
         
-        // Bluesky fallback: attach discovered OG/Twitter card image when posting URL-only content.
-        if mediaItems.isEmpty,
-           isBlueskySelected,
-           let fallbackImageURL = linkPreview?.imageURL?.absoluteString,
-           !fallbackImageURL.isEmpty {
-            mediaItems.append([
-                "url": fallbackImageURL,
-                "altText": linkPreview?.title ?? "Link preview image"
-            ])
-        }
+        let linkAsset = mediaItems.isEmpty ? blueskyLinkAsset() : nil
         
         let isVideo = attachments.first?.isVideo ?? false
         
@@ -1002,9 +1004,10 @@ struct ComposerView: View {
         let textsToPublish = isThreaded ? threadSegments : [postText]
         
         // Dispatch to background publisher!
-        BackgroundPublisher.shared.publish(
+        let didStartPublishing = BackgroundPublisher.shared.publish(
             texts: textsToPublish,
             mediaItems: mediaItems,
+            linkAsset: linkAsset,
             isVideo: isVideo,
             selectedChannels: Array(selectedChannels),
             channels: apiChannels,
@@ -1012,8 +1015,33 @@ struct ComposerView: View {
             token: token
         )
         
+        if !didStartPublishing {
+            isPosting = false
+            postingStatus = nil
+        }
+        
         // Keep popover open so background publish state/errors remain visible and reliable.
         // Users can close it manually when they are done.
+    }
+    
+    private func blueskyLinkAsset() -> [String: String]? {
+        guard isBlueskySelected,
+              let url = (linkPreview?.canonicalURL ?? detectedLinkURL)?.absoluteString,
+              !url.isEmpty else {
+            return nil
+        }
+        
+        var asset = ["url": url]
+        if let title = linkPreview?.title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            asset["title"] = title
+        }
+        if let description = linkPreview?.description, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            asset["description"] = description
+        }
+        if let thumbnailUrl = linkPreview?.imageURL?.absoluteString, !thumbnailUrl.isEmpty {
+            asset["thumbnailUrl"] = thumbnailUrl
+        }
+        return asset
     }
     
 
@@ -1024,7 +1052,7 @@ struct ComposerView: View {
         let detectedURL = firstDetectedURL(in: text)
         detectedLinkURL = detectedURL
         
-        guard let detectedURL else {
+        guard let detectedURL, shouldFetchLinkPreview else {
             isFetchingLinkPreview = false
             linkPreviewTask?.cancel()
             withAnimation(layoutAnimation) {

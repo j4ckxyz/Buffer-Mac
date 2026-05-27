@@ -25,16 +25,20 @@ actor LinkMetadataService {
     
     func fetchPreview(for rawURL: URL) async -> LinkPreviewMetadata? {
         do {
+            debugLog("Fetching link preview | URL: \(rawURL.absoluteString)")
             let (data, response) = try await session.data(from: rawURL)
             guard let http = response as? HTTPURLResponse,
                   (200...399).contains(http.statusCode),
                   let html = String(data: data, encoding: .utf8) else {
+                debugLog("Link preview response was not usable.")
                 return nil
             }
             
             let finalURL = http.url ?? rawURL
+            debugLog("Fetched link preview | HTTP: \(http.statusCode) | Final URL: \(finalURL.absoluteString)")
             return parseMetadata(from: html, baseURL: finalURL)
         } catch {
+            debugLog("Link preview failed: \(error.localizedDescription)")
             return nil
         }
     }
@@ -142,5 +146,11 @@ actor LinkMetadataService {
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#39;", with: "'")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private func debugLog(_ message: String) {
+        #if DEBUG
+        print("[LinkMetadataService] \(message)")
+        #endif
     }
 }
