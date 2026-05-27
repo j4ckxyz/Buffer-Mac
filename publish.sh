@@ -6,7 +6,7 @@
 set -e
 
 REPO_NAME="Buffer-Mac"
-WORKSPACE_DIR="/Users/jack/code/buffer-menubar"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "============================================="
 echo "   Deploying ${REPO_NAME} to GitHub"

@@ -7,7 +7,7 @@ set -e
 
 APP_NAME="BufferMenubar"
 DMG_NAME="Buffer-Mac"
-WORKSPACE_DIR="/Users/jack/code/buffer-menubar"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${WORKSPACE_DIR}/build"
 DMG_STAGING_DIR="${BUILD_DIR}/dmg_staging"
 OUTPUT_DMG="${WORKSPACE_DIR}/${DMG_NAME}.dmg"

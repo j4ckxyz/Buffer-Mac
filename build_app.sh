@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="BufferMenubar"
-WORKSPACE_DIR="/Users/jack/code/buffer-menubar"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_BUNDLE="${WORKSPACE_DIR}/${APP_NAME}.app"
 CONTENTS_DIR="${APP_BUNDLE}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
