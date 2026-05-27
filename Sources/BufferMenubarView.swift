@@ -48,32 +48,12 @@ struct BufferMenubarView: View {
     }
     
     private func checkAuthStatus() {
-        guard let token = KeychainHelper.getToken() else {
+        if KeychainHelper.getToken() != nil {
+            isAuthenticated = true
             isChecking = false
+        } else {
             isAuthenticated = false
-            return
-        }
-        
-        Task {
-            do {
-                // Verify the stored key is still valid
-                _ = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: token)
-                await MainActor.run {
-                    withAnimation(authAnimation) {
-                        isAuthenticated = true
-                        isChecking = false
-                    }
-                }
-            } catch {
-                // Token is stale or invalid, clear and prompt login
-                KeychainHelper.deleteToken()
-                await MainActor.run {
-                    withAnimation(authAnimation) {
-                        isAuthenticated = false
-                        isChecking = false
-                    }
-                }
-            }
+            isChecking = false
         }
     }
     

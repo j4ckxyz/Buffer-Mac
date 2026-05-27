@@ -6,7 +6,6 @@ struct SettingsView: View {
     @State private var defaultMode = UserDefaults.standard.string(forKey: "default_post_mode") ?? "shareNow"
     @State private var hotkeyModifier = UserDefaults.standard.string(forKey: "hotkey_modifier") ?? "Option"
     @State private var hotkeyKey = UserDefaults.standard.string(forKey: "hotkey_key") ?? "Space"
-    @State private var intelligentAntiSpam = UserDefaults.standard.object(forKey: "intelligent_antispam") == nil ? true : UserDefaults.standard.bool(forKey: "intelligent_antispam")
     @State private var activeTab: String = "general"
     @State private var isSaved = false
     @State private var isTesting = false
@@ -106,23 +105,7 @@ struct SettingsView: View {
                                 .horizontalRadioGroupLayout()
                                 .labelsHidden()
                             }
-                            
-                            GridRow {
-                                Text("Anti-Spam:")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .gridCellAnchor(.trailing)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Toggle("Automatically defer to schedule if recently posted", isOn: $intelligentAntiSpam)
-                                        .toggleStyle(CheckboxToggleStyle())
-                                    
-                                    Text("Queue posts automatically if you recently shared a post (within 30m) to avoid spamming feeds.")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                }
-                            }
+
                             
                             Divider()
                                 .gridCellColumns(2)
@@ -182,9 +165,7 @@ struct SettingsView: View {
                                         defaultMode = "shareNow"
                                         hotkeyModifier = "Option"
                                         hotkeyKey = "Space"
-                                        intelligentAntiSpam = true
                                         
-                                        UserDefaults.standard.removeObject(forKey: "intelligent_antispam")
                                         UserDefaults.standard.removeObject(forKey: "hotkey_keycode")
                                         UserDefaults.standard.removeObject(forKey: "hotkey_carbon_modifiers")
                                         UserDefaults.standard.set("Option", forKey: "hotkey_modifier")
@@ -314,7 +295,6 @@ struct SettingsView: View {
         }
         
         UserDefaults.standard.set(defaultMode, forKey: "default_post_mode")
-        UserDefaults.standard.set(intelligentAntiSpam, forKey: "intelligent_antispam")
         UserDefaults.standard.set(hotkeyModifier, forKey: "hotkey_modifier")
         UserDefaults.standard.set(hotkeyKey, forKey: "hotkey_key")
         
