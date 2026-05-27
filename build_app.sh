@@ -45,6 +45,32 @@ rm -rf "${APP_BUNDLE}"
 mkdir -p "${MACOS_DIR}"
 mkdir -p "${RESOURCES_DIR}"
 
+# 3b. Compile AppIcon.icns natively using sips and iconutil
+SRC_ICON="${WORKSPACE_DIR}/AppIcon.png"
+if [ -f "${SRC_ICON}" ]; then
+    echo "🎨 Compiling custom macOS-native AppIcon.icns..."
+    ICONSET_DIR="${WORKSPACE_DIR}/.build/AppIcon.iconset"
+    rm -rf "${ICONSET_DIR}"
+    mkdir -p "${ICONSET_DIR}"
+    
+    sips -z 16 16     "${SRC_ICON}" --out "${ICONSET_DIR}/icon_16x16.png" >/dev/null 2>&1
+    sips -z 32 32     "${SRC_ICON}" --out "${ICONSET_DIR}/icon_16x16@2x.png" >/dev/null 2>&1
+    sips -z 32 32     "${SRC_ICON}" --out "${ICONSET_DIR}/icon_32x32.png" >/dev/null 2>&1
+    sips -z 64 64     "${SRC_ICON}" --out "${ICONSET_DIR}/icon_32x32@2x.png" >/dev/null 2>&1
+    sips -z 128 128   "${SRC_ICON}" --out "${ICONSET_DIR}/icon_128x128.png" >/dev/null 2>&1
+    sips -z 256 256   "${SRC_ICON}" --out "${ICONSET_DIR}/icon_128x128@2x.png" >/dev/null 2>&1
+    sips -z 256 256   "${SRC_ICON}" --out "${ICONSET_DIR}/icon_256x256.png" >/dev/null 2>&1
+    sips -z 512 512   "${SRC_ICON}" --out "${ICONSET_DIR}/icon_256x256@2x.png" >/dev/null 2>&1
+    sips -z 512 512   "${SRC_ICON}" --out "${ICONSET_DIR}/icon_512x512.png" >/dev/null 2>&1
+    sips -z 1024 1024 "${SRC_ICON}" --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null 2>&1
+    
+    iconutil -c icns "${ICONSET_DIR}" --o "${RESOURCES_DIR}/AppIcon.icns"
+    rm -rf "${ICONSET_DIR}"
+    echo "✅ AppIcon.icns successfully compiled and bundled!"
+else
+    echo "⚠️ Warning: Sources/AppIcon.png not found, skipping icon compilation."
+fi
+
 # 4. Copy the binary
 cp "${BINARY_PATH}" "${MACOS_DIR}/${APP_NAME}"
 chmod +x "${MACOS_DIR}/${APP_NAME}"
@@ -68,6 +94,8 @@ cat <<EOF > "${CONTENTS_DIR}/Info.plist"
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
     <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>

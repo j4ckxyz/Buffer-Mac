@@ -23,6 +23,12 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
+      - name: Read Version
+        id: get_version
+        run: |
+          VERSION=$(cat VERSION | xargs)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Compile and Package Universal DMG
         run: |
           chmod +x ./build_dmg.sh
@@ -35,7 +41,7 @@ jobs:
           name: Buffer-Mac-DMG
           path: Buffer-Mac.dmg
 
-      - name: Create GitHub Release (Push tag)
+      - name: Create Versioned Release (Push tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
@@ -44,7 +50,27 @@ jobs:
           prerelease: false
           name: Release ${{ github.ref_name }}
           body: |
-            This is a official release download for Buffer-Mac compiled natively for both Apple Silicon (arm64) and Intel (x86_64) Apple Macs.
+            Official production release for Buffer-Mac tag ${{ github.ref_name }}, compiled natively for both Apple Silicon (arm64) and Intel (x86_64) Apple Macs.
+            
+            ## Installation
+            
+            1. Download the `Buffer-Mac.dmg` asset below.
+            2. Double-click to mount the DMG, then drag the **BufferMenubar** app icon into your **Applications** folder.
+            3. Right-click the app in `/Applications` and select **Open** to authorise Gatekeeper, or go to **System Settings > Privacy & Security** and select **Open Anyway**.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Versioned Release (Push main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Buffer-Mac.dmg
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Version ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          body: |
+            Official Universal 2 DMG installer for Buffer for Mac Version ${{ steps.get_version.outputs.version }}, compiled natively for both Apple Silicon (arm64) and Intel (x86_64) Apple Macs.
             
             ## Installation
             
@@ -63,7 +89,7 @@ jobs:
           make_latest: true
           name: Latest Rolling Build
           body: |
-            This is a rolling build generated automatically after the latest push to the main branch, compiled natively for both Apple Silicon (arm64) and Intel (x86_64) Apple Macs.
+            This is the rolling build matching the latest commit on main, representing Version ${{ steps.get_version.outputs.version }}.
             
             ## Installation
             
