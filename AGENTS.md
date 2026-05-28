@@ -57,5 +57,5 @@ graph TD
 All future AI agents working on this codebase **must** adhere to the following operational constraints:
 
 * **DO NOT** edit or hardcode the version string (`"0.0.1"`, `"1.0.0"`, etc.) directly inside Swift views or build scripts. All version queries must refer directly to the root `VERSION` file or standard SwiftUI bundle lookups.
-* **INCREMENT VERSION FILE**: Before making commits that introduce polished features, bug fixes, or enhancements, you **must** increment the version number in the root `VERSION` file by at least a patch version (e.g., from `0.0.1` to `0.0.2`).
+* **INCREMENT VERSION FILE ON PUBLIC RELEASE PUSHES ONLY**: The version number in the root `VERSION` file must **ONLY** be incremented when pushing a release publicly to GitHub. Do **NOT** increment the version number during local iterative developments or local testing. All commits pushed publicly must follow consecutive sequential numbering (e.g. from `0.0.2` directly to `0.0.3`, not skipping to `0.0.9`) so that users are not confused by skipped version increments.
 * **AUTOMATED TESTING**: Always trigger `./build_dmg.sh` locally to verify that your changes compile successfully under both Intel and Apple Silicon targets before committing and pushing your updates.
