@@ -167,7 +167,7 @@ struct LoginView: View {
             if let error = errorMessage {
                 Text(error)
                     .font(.system(.caption, design: .rounded))
-                    .foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.25))
+                    .foregroundColor(.red)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 28)
                     .transition(.opacity)
@@ -208,9 +208,10 @@ struct LoginView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.orange)
                         .padding(.top, 1)
+                        .accessibilityHidden(true)
                     
                     Text("Privacy Warning: Buffer requires public web paths to publish media. Any local images or videos will be uploaded securely and anonymously to Catbox.moe (a third-party server) before posting.")
-                        .font(.system(size: 9, design: .rounded))
+                        .font(.system(size: 10.5, design: .rounded))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -230,9 +231,10 @@ struct LoginView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.top, 1)
+                        .accessibilityHidden(true)
                     
                     Text("Disclaimer: This is an unofficial FOSS app and is not affiliated, endorsed, or officially connected with Buffer Inc.")
-                        .font(.system(size: 9, design: .rounded))
+                        .font(.system(size: 10.5, design: .rounded))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)

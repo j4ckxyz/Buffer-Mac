@@ -127,7 +127,24 @@ final class CatboxUploader: NSObject, URLSessionTaskDelegate {
     
     private func prepareFileForUpload(at fileURL: URL) async throws -> PreparedUpload {
         guard isVideo(fileURL) else {
-            return PreparedUpload(url: fileURL, cleanupURLs: [])
+            let originalSize = try fileSizeBytes(for: fileURL)
+            let maxImageBytes: Int64 = 2 * 1024 * 1024 // 2 MB
+            if originalSize <= maxImageBytes {
+                return PreparedUpload(url: fileURL, cleanupURLs: [])
+            }
+            
+            do {
+                let compressedURL = try compressImageToFitLimit(inputURL: fileURL, maxBytes: maxImageBytes)
+                let finalSize = try fileSizeBytes(for: compressedURL)
+                if finalSize <= maxImageBytes {
+                    debugLog("✅ Image compression successful: \(finalSize / 1024) KB")
+                    return PreparedUpload(url: compressedURL, cleanupURLs: [compressedURL])
+                }
+                return PreparedUpload(url: fileURL, cleanupURLs: [])
+            } catch {
+                debugLog("⚠️ Image compression failed, uploading original: \(error.localizedDescription)")
+                return PreparedUpload(url: fileURL, cleanupURLs: [])
+            }
         }
         
         let originalSize = try fileSizeBytes(for: fileURL)
@@ -149,6 +166,91 @@ final class CatboxUploader: NSObject, URLSessionTaskDelegate {
         
         debugLog("✅ Local video compression complete (\(compressedSizeMB) MB).")
         return PreparedUpload(url: compressedURL, cleanupURLs: [compressedURL])
+    }
+    
+    private func compressImageToFitLimit(inputURL: URL, maxBytes: Int64) throws -> URL {
+        guard let imageSource = CGImageSourceCreateWithURL(inputURL as CFURL, nil),
+              let _ = CGImageSourceGetType(imageSource) else {
+            return inputURL
+        }
+        
+        let originalSize = try fileSizeBytes(for: inputURL)
+        if originalSize <= maxBytes {
+            return inputURL
+        }
+        
+        debugLog("🖼️ Image size is \(originalSize / 1024) KB. Compressing to fit under \(maxBytes / 1024) KB...")
+        
+        guard let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+            return inputURL
+        }
+        
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        // 1. Try step-down quality compression first
+        var quality: CGFloat = 0.85
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("compressed_image_\(UUID().uuidString)")
+            .appendingPathExtension("jpg")
+        
+        while quality >= 0.4 {
+            if let destination = CGImageDestinationCreateWithURL(outputURL as CFURL, UTType.jpeg.identifier as CFString, 1, nil) {
+                let options: [CFString: Any] = [
+                    kCGImageDestinationLossyCompressionQuality: quality
+                ]
+                CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
+                if CGImageDestinationFinalize(destination) {
+                    let size = try fileSizeBytes(for: outputURL)
+                    debugLog("📸 Quality \(quality) produced \(size / 1024) KB")
+                    if size <= maxBytes {
+                        return outputURL
+                    }
+                }
+            }
+            quality -= 0.15
+        }
+        
+        // 2. If quality compression wasn't enough, downscale the image and compress
+        var scale: CGFloat = 0.75
+        while scale >= 0.25 {
+            let targetWidth = Int(CGFloat(width) * scale)
+            let targetHeight = Int(CGFloat(height) * scale)
+            
+            guard let context = CGContext(
+                data: nil,
+                width: targetWidth,
+                height: targetHeight,
+                bitsPerComponent: cgImage.bitsPerComponent,
+                bytesPerRow: 0,
+                space: cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: cgImage.bitmapInfo.rawValue
+            ) else {
+                break
+            }
+            
+            context.interpolationQuality = .high
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+            
+            if let downscaledImage = context.makeImage() {
+                if let destination = CGImageDestinationCreateWithURL(outputURL as CFURL, UTType.jpeg.identifier as CFString, 1, nil) {
+                    let options: [CFString: Any] = [
+                        kCGImageDestinationLossyCompressionQuality: CGFloat(0.7)
+                    ]
+                    CGImageDestinationAddImage(destination, downscaledImage, options as CFDictionary)
+                    if CGImageDestinationFinalize(destination) {
+                        let size = try fileSizeBytes(for: outputURL)
+                        debugLog("📸 Scale \(scale) produced \(size / 1024) KB")
+                        if size <= maxBytes {
+                            return outputURL
+                        }
+                    }
+                }
+            }
+            scale -= 0.25
+        }
+        
+        return inputURL
     }
     
     private func compressVideoToFitLimit(inputURL: URL, maxBytes: Int64) async throws -> URL {

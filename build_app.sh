@@ -75,6 +75,17 @@ fi
 cp "${BINARY_PATH}" "${MACOS_DIR}/${APP_NAME}"
 chmod +x "${MACOS_DIR}/${APP_NAME}"
 
+# 4b. Copy the macOS Tahoe .icon bundle into Resources
+TAHOE_ICON_SRC="${WORKSPACE_DIR}/Buffer Mac - App Icon.icon"
+if [ -d "${TAHOE_ICON_SRC}" ]; then
+    echo "💎 Bundling macOS Tahoe layered Liquid Glass AppIcon.icon..."
+    cp -R "${TAHOE_ICON_SRC}" "${RESOURCES_DIR}/AppIcon.icon"
+    echo "✅ macOS Tahoe Liquid Glass AppIcon.icon bundled!"
+else
+    echo "⚠️ Warning: Buffer Mac - App Icon.icon directory not found, skipping Tahoe layered icon bundling."
+fi
+
+
 # 5. Create Info.plist (Enabling LSUIElement to run as a native menu bar agent)
 echo "📝 Writing Info.plist metadata..."
 cat <<EOF > "${CONTENTS_DIR}/Info.plist"

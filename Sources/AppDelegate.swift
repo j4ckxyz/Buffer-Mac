@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var eventMonitor: EventMonitor?
+    public var isShowingOpenPanel = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[BufferMenubar] App launched, initializing components...")
@@ -29,20 +30,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem.button {
-            if let appIcon = NSImage(named: "AppIcon") {
-                appIcon.size = NSSize(width: 18, height: 18)
-                appIcon.isTemplate = false
-                button.image = appIcon
-            } else if #available(macOS 11.0, *) {
-                button.image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "Buffer Composer")
-            } else {
-                button.title = "⚡️"
-            }
+            button.image = createBufferMenuIcon()
             button.imagePosition = .imageOnly
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
     }
+    
+    private func createBufferMenuIcon() -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size, flipped: false) { rect in
+            let svgPathString = "M427.84 380.67l-196.5 97.82a18.6 18.6 0 0 1-14.67 0L20.16 380.67c-4-2-4-5.28 0-7.29L67.22 350a18.65 18.65 0 0 1 14.69 0l134.76 67a18.51 18.51 0 0 0 14.67 0l134.76-67a18.62 18.62 0 0 1 14.68 0l47.06 23.43c4.05 1.96 4.05 5.24 0 7.24zm0-136.53l-47.06-23.43a18.62 18.62 0 0 0-14.68 0l-134.76 67a18.51 18.51 0 0 1-14.67 0l-134.76-67a18.65 18.65 0 0 0-14.69 0L20.16 244.12c-4 2-4 5.28 0 7.29l196.5 97.82a18.6 18.6 0 0 0 14.67 0l196.5-97.82c4-2 4-5.28 0-7.29zM427.84 107.57l-196.5 97.82a18.6 18.6 0 0 1-14.67 0L20.16 107.57c-4-2-4-5.28 0-7.29L67.22 76.85a18.65 18.65 0 0 1 14.69 0l134.76 67a18.51 18.51 0 0 0 14.67 0l134.76-67a18.62 18.62 0 0 1 14.68 0l47.06 23.43c4.05 1.96 4.05 5.24 0 7.24z"
+            
+            NSColor.labelColor.set()
+            
+            // Render inside a 14x14 box inside the 18x18 bounds (centered with 2px margins)
+            let iconRect = NSRect(x: 2, y: 2, width: 14, height: 14)
+            let path = SVGPath(svgPathString: svgPathString, viewBox: CGRect(x: 0, y: 0, width: 448, height: 512), targetRect: iconRect).bezierPath
+            path.fill()
+            
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+
     
     private func setupPopover() {
         let popover = NSPopover()
@@ -59,6 +71,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eventMonitor = EventMonitor(mask: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self = self else { return }
             if self.popover.isShown {
+                if self.isShowingOpenPanel {
+                    print("[BufferMenubar] Event monitor: NSOpenPanel active, ignoring click-off.")
+                    return
+                }
+                
                 // If composer holds an active draft, keep the popover open so the user can drag-and-drop
                 // media or links from other windows (Finder, Safari) without it disappearing!
                 let draftText = Storage.draftText.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -83,6 +83,7 @@ struct ComposerView: View {
                         .foregroundColor(.gray)
                 }
                 .menuStyle(BorderlessButtonMenuStyle())
+                .menuIndicator(.hidden)
                 .frame(width: 24, height: 24)
                 .padding(.leading, 8)
                 
@@ -121,7 +122,7 @@ struct ComposerView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.08))
+                    .background(Color.primary.opacity(0.08))
                     .cornerRadius(20)
                 }
                 .buttonStyle(ScaleButtonStyle())
@@ -139,7 +140,7 @@ struct ComposerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.black.opacity(0.15))
+            .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
             
             // MARK: - Expanded Channel Checklist Dropdown
             if isChannelSelectorExpanded {
@@ -169,12 +170,12 @@ struct ComposerView: View {
                                             Spacer()
                                             
                                             Image(systemName: selectedChannels.contains(channel.id) ? "checkmark.circle.fill" : "circle")
-                                                .foregroundColor(selectedChannels.contains(channel.id) ? channel.service.serviceColor : Color(NSColor.tertiaryLabelColor))
+                                                .foregroundColor(selectedChannels.contains(channel.id) ? .blue : Color(NSColor.tertiaryLabelColor))
                                                 .font(.system(size: 14))
                                         }
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
-                                        .background(selectedChannels.contains(channel.id) ? channel.service.serviceColor.opacity(0.08) : Color.clear)
+                                        .background(selectedChannels.contains(channel.id) ? Color.blue.opacity(0.08) : Color.clear)
                                     }
                                     .buttonStyle(ScaleButtonStyle())
                                 }
@@ -185,9 +186,9 @@ struct ComposerView: View {
                     .frame(maxHeight: 140)
                     
                     Divider()
-                        .background(Color.white.opacity(0.1))
+                        .background(Color(NSColor.separatorColor))
                 }
-                .background(Color.black.opacity(0.1))
+                .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
@@ -233,40 +234,7 @@ struct ComposerView: View {
             // MARK: - Scrollable Composer Area
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // MARK: - Clipboard Suggestion Banner
-                    if hasClipboardSuggestion {
-                        Button(action: attachFromClipboard) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "doc.on.clipboard")
-                                    .foregroundColor(.blue)
-                                    .font(.system(size: 11, weight: .semibold))
-                                
-                                Text(clipboardMessage)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                
-                                Spacer()
-                                
-                                Text("Attach")
-                                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue)
-                                    .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color.blue.opacity(0.12))
-                            .overlay(
-                                Rectangle()
-                                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+                    // MARK: - Clipboard Suggestion Banner (Removed for native Cmd+V flow)
                     
                     // MARK: - Link Card Preview (for URL posts)
                     if let preview = linkPreview {
@@ -281,11 +249,11 @@ struct ComposerView: View {
                                                 .aspectRatio(contentMode: .fill)
                                         case .failure:
                                             RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white.opacity(0.06))
+                                                .fill(Color(NSColor.controlBackgroundColor))
                                                 .overlay(Image(systemName: "photo").foregroundColor(.gray))
                                         case .empty:
                                             RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white.opacity(0.06))
+                                                .fill(Color(NSColor.controlBackgroundColor))
                                                 .overlay(ProgressView().scaleEffect(0.6))
                                         @unknown default:
                                             EmptyView()
@@ -341,13 +309,13 @@ struct ComposerView: View {
                     ZStack(alignment: .topLeading) {
                         // Drag Backdrop Highlight
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(isDragTargeted ? Color.blue.opacity(0.08) : Color.white.opacity(0.03))
+                            .fill(isDragTargeted ? Color.blue.opacity(0.08) : Color.primary.opacity(0.03))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(
                                         isDragTargeted
                                         ? Color.blue
-                                        : (isComposerFocused ? Color.white.opacity(0.2) : Color.white.opacity(0.06)),
+                                        : (isComposerFocused ? Color.primary.opacity(0.2) : Color.primary.opacity(0.06)),
                                         lineWidth: isDragTargeted ? 2 : (isComposerFocused ? 1.5 : 1)
                                     )
                             )
@@ -547,7 +515,7 @@ struct ComposerView: View {
                             Button(action: { selectLocalMedia(isVideo: false) }) {
                                 Image(systemName: "photo")
                                     .font(.system(size: 15))
-                                    .foregroundColor(canAddImages ? .teal : Color(NSColor.disabledControlTextColor))
+                                    .foregroundColor(canAddImages ? .blue : Color(NSColor.disabledControlTextColor))
                                     .help("Attach images (up to 4)")
                             }
                             .buttonStyle(ScaleButtonStyle())
@@ -556,7 +524,7 @@ struct ComposerView: View {
                             Button(action: { selectLocalMedia(isVideo: true) }) {
                                 Image(systemName: "video")
                                     .font(.system(size: 15))
-                                    .foregroundColor(canAddVideo ? .purple : Color(NSColor.disabledControlTextColor))
+                                    .foregroundColor(canAddVideo ? .blue : Color(NSColor.disabledControlTextColor))
                                     .help("Attach a video (up to 1)")
                             }
                             .buttonStyle(ScaleButtonStyle())
@@ -567,10 +535,10 @@ struct ComposerView: View {
                                     Image(systemName: "doc.on.clipboard.fill")
                                         .font(.system(size: 15))
                                         .foregroundColor(.blue)
-                                        .help("Paste media from clipboard (Cmd+Shift+V) - \(clipboardMessage)")
+                                        .help("Paste media from clipboard (Cmd+V) - \(clipboardMessage)")
                                 }
                                 .buttonStyle(ScaleButtonStyle())
-                                .keyboardShortcut("v", modifiers: [.command, .shift])
+                                .keyboardShortcut("v", modifiers: [.command])
                                 .transition(.opacity.combined(with: .scale))
                             }
                         }
@@ -692,7 +660,7 @@ struct ComposerView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .background(Color.black.opacity(0.12))
+            .background(Color.clear)
         }
         .onAppear {
             loadInitialSetup()
@@ -890,7 +858,15 @@ struct ComposerView: View {
             panel.allowedContentTypes = [.image, .jpeg, .png, .gif, .webP]
         }
         
+        let appDelegate = NSApp.delegate as? AppDelegate
+        appDelegate?.isShowingOpenPanel = true
+        
+        // Activate the application so the file selection dialog is displayed on top immediately
+        NSApp.activate(ignoringOtherApps: true)
+        
         panel.begin { response in
+            appDelegate?.isShowingOpenPanel = false
+            
             if response == .OK {
                 for url in panel.urls {
                     addMediaAttachment(url: url, isVideo: isVideo)
