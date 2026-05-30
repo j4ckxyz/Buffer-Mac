@@ -368,13 +368,10 @@ struct ComposerView: View {
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                     
-                                    if index < threadPosts.count - 1 {
-                                        Rectangle()
-                                            .fill(Color.primary.opacity(0.12))
-                                            .frame(width: 2)
-                                            .frame(minHeight: 40)
-                                            .padding(.vertical, 4)
-                                    }
+                                    // Continuous timeline connector line stretching down to card height
+                                    Rectangle()
+                                        .fill(Color.primary.opacity(0.12))
+                                        .frame(width: 2)
                                 }
                                 .frame(width: 28)
                                 
@@ -538,8 +535,12 @@ struct ComposerView: View {
                         }
                         
                         // Plus visual button to add to thread
-                        HStack(alignment: .center, spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
                             VStack(spacing: 0) {
+                                Rectangle()
+                                    .fill(Color.primary.opacity(0.12))
+                                    .frame(width: 2, height: 8)
+                                
                                 ZStack {
                                     Circle()
                                         .fill(Color.blue.opacity(0.08))
@@ -562,6 +563,7 @@ struct ComposerView: View {
                                 Text("Add to thread")
                                     .font(.system(size: 12, weight: .bold, design: .rounded))
                                     .foregroundColor(.blue)
+                                    .padding(.top, 12)
                             }
                             .buttonStyle(PlainButtonStyle())
                             
@@ -1152,6 +1154,13 @@ struct ComposerView: View {
         // Build the array of PublisherPost structures
         var publisherPosts: [PublisherPost] = []
         for post in threadPosts {
+            let hasText = !post.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasMedia = !post.attachments.isEmpty
+            // Skip empty cards to prevent blank updates in the thread
+            if !hasText && !hasMedia {
+                continue
+            }
+            
             var postMedia: [[String: String]] = []
             for item in post.attachments {
                 guard let url = item.uploadedURL else { continue }
@@ -1162,6 +1171,12 @@ struct ComposerView: View {
                 ])
             }
             publisherPosts.append(PublisherPost(text: post.text, mediaItems: postMedia))
+        }
+        
+        guard !publisherPosts.isEmpty else {
+            isPosting = false
+            postingStatus = nil
+            return
         }
         
         // linkAsset only applies if the main post has no media
