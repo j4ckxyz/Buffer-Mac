@@ -75,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         popover.contentViewController = hostingController
+        popover.delegate = self
         self.popover = popover
     }
     
@@ -134,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
             window.backgroundColor = .clear
             window.isOpaque = false
+            window.titlebarAppearsTransparent = true
         }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
@@ -165,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
             window.backgroundColor = .clear
             window.isOpaque = false
+            window.titlebarAppearsTransparent = true
         }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
@@ -299,6 +302,8 @@ final class TransparentHostingController<Content: View>: NSHostingController<Con
     override func viewWillAppear() {
         super.viewWillAppear()
         if #available(macOS 26, *) {
+            view.wantsLayer = true
+            view.layer?.backgroundColor = NSColor.clear.cgColor
             if let window = view.window {
                 window.backgroundColor = .clear
                 window.isOpaque = false
@@ -309,9 +314,35 @@ final class TransparentHostingController<Content: View>: NSHostingController<Con
     override func viewDidAppear() {
         super.viewDidAppear()
         if #available(macOS 26, *) {
+            view.wantsLayer = true
+            view.layer?.backgroundColor = NSColor.clear.cgColor
             if let window = view.window {
                 window.backgroundColor = .clear
                 window.isOpaque = false
+            }
+        }
+    }
+}
+
+// MARK: - NSPopoverDelegate Implementation
+extension AppDelegate: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        if #available(macOS 26, *) {
+            if let popoverWindow = popover.contentViewController?.view.window {
+                popoverWindow.backgroundColor = .clear
+                popoverWindow.isOpaque = false
+            }
+            
+            // Apply clear background layer properties to the content view hierarchy
+            if let contentView = popover.contentViewController?.view {
+                contentView.wantsLayer = true
+                contentView.layer?.backgroundColor = NSColor.clear.cgColor
+                
+                // Clear any subview layers that might paint standard solid backings
+                for subview in contentView.subviews {
+                    subview.wantsLayer = true
+                    subview.layer?.backgroundColor = NSColor.clear.cgColor
+                }
             }
         }
     }
