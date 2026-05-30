@@ -120,8 +120,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
+        let width: CGFloat = 480
+        var height: CGFloat = 330
+        if #available(macOS 26, *) {
+            height = 280
+        }
+        
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 260),
+            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
