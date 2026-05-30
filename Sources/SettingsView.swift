@@ -49,7 +49,7 @@ struct SettingsView: View {
                 
                 Spacer()
             }
-            .padding(.top, 16)
+            .padding(.top, 24)
             .padding(.bottom, 12)
             
             // MARK: - Tab Panels Content (Borderless with auto-save)
@@ -693,7 +693,7 @@ struct SettingsBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
             content
-                .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+                .background(VisualEffectView(material: .popover, blendingMode: .behindWindow))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
         } else {
             content

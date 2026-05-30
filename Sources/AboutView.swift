@@ -62,7 +62,7 @@ struct AboutBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
             content
-                .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+                .background(VisualEffectView(material: .popover, blendingMode: .behindWindow))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
         } else {
             content
