@@ -9,8 +9,12 @@ struct BufferMenubarView: View {
     var body: some View {
         ZStack {
             // Hard solid background that adapts perfectly to light and dark modes
-            Color(NSColor.windowBackgroundColor)
-                .edgesIgnoringSafeArea(.all)
+            if #available(macOS 26, *) {
+                // Let the system popover glass handle the background
+            } else {
+                Color(NSColor.windowBackgroundColor)
+                    .edgesIgnoringSafeArea(.all)
+            }
             
             if isChecking {
                 VStack(spacing: 16) {

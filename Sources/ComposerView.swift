@@ -511,38 +511,78 @@ struct ComposerView: View {
                     // MARK: - Character count and Add buttons panel
                     HStack {
                         // Media Add Utilities
-                        HStack(spacing: 12) {
-                            Button(action: { selectLocalMedia(isVideo: false) }) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(canAddImages ? .blue : Color(NSColor.disabledControlTextColor))
-                                    .help("Attach images (up to 4)")
+                        if #available(macOS 26, *) {
+                            GlassEffectContainer {
+                                HStack(spacing: 12) {
+                                    Button(action: { selectLocalMedia(isVideo: false) }) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 15))
+                                            .foregroundColor(canAddImages ? .blue : Color(NSColor.disabledControlTextColor))
+                                            .help("Attach images (up to 4)")
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    .disabled(!canAddImages)
+                                    .glassEffect()
+                                    
+                                    Button(action: { selectLocalMedia(isVideo: true) }) {
+                                        Image(systemName: "video")
+                                            .font(.system(size: 15))
+                                            .foregroundColor(canAddVideo ? .blue : Color(NSColor.disabledControlTextColor))
+                                            .help("Attach a video (up to 1)")
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    .disabled(!canAddVideo)
+                                    .glassEffect()
+                                    
+                                    if hasClipboardSuggestion {
+                                        Button(action: attachFromClipboard) {
+                                            Image(systemName: "doc.on.clipboard.fill")
+                                                .font(.system(size: 15))
+                                                .foregroundColor(.blue)
+                                                .help("Paste media from clipboard (Cmd+V) - \(clipboardMessage)")
+                                        }
+                                        .buttonStyle(ScaleButtonStyle())
+                                        .keyboardShortcut("v", modifiers: [.command])
+                                        .transition(.opacity.combined(with: .scale))
+                                        .glassEffect()
+                                    }
+                                }
                             }
-                            .buttonStyle(ScaleButtonStyle())
-                            .disabled(!canAddImages)
-                            
-                            Button(action: { selectLocalMedia(isVideo: true) }) {
-                                Image(systemName: "video")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(canAddVideo ? .blue : Color(NSColor.disabledControlTextColor))
-                                    .help("Attach a video (up to 1)")
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                            .disabled(!canAddVideo)
-                            
-                            if hasClipboardSuggestion {
-                                Button(action: attachFromClipboard) {
-                                    Image(systemName: "doc.on.clipboard.fill")
+                            .padding(.horizontal, 6)
+                        } else {
+                            HStack(spacing: 12) {
+                                Button(action: { selectLocalMedia(isVideo: false) }) {
+                                    Image(systemName: "photo")
                                         .font(.system(size: 15))
-                                        .foregroundColor(.blue)
-                                        .help("Paste media from clipboard (Cmd+V) - \(clipboardMessage)")
+                                        .foregroundColor(canAddImages ? .blue : Color(NSColor.disabledControlTextColor))
+                                        .help("Attach images (up to 4)")
                                 }
                                 .buttonStyle(ScaleButtonStyle())
-                                .keyboardShortcut("v", modifiers: [.command])
-                                .transition(.opacity.combined(with: .scale))
+                                .disabled(!canAddImages)
+                                
+                                Button(action: { selectLocalMedia(isVideo: true) }) {
+                                    Image(systemName: "video")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(canAddVideo ? .blue : Color(NSColor.disabledControlTextColor))
+                                        .help("Attach a video (up to 1)")
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+                                .disabled(!canAddVideo)
+                                
+                                if hasClipboardSuggestion {
+                                    Button(action: attachFromClipboard) {
+                                        Image(systemName: "doc.on.clipboard.fill")
+                                            .font(.system(size: 15))
+                                            .foregroundColor(.blue)
+                                            .help("Paste media from clipboard (Cmd+V) - \(clipboardMessage)")
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    .keyboardShortcut("v", modifiers: [.command])
+                                    .transition(.opacity.combined(with: .scale))
+                                }
                             }
+                            .padding(.horizontal, 6)
                         }
-                        .padding(.horizontal, 6)
                         
                         Spacer()
                         
@@ -655,6 +695,7 @@ struct ComposerView: View {
                     )
                     .cornerRadius(10)
                 }
+                .modifier(GlassButtonModifier())
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(!canSubmit || isPosting)
                 .padding(.horizontal, 20)
@@ -1559,6 +1600,16 @@ struct ScaleButtonStyle: ButtonStyle {
                 .onHover { hovering in
                     isHovering = hovering
                 }
+        }
+    }
+}
+
+struct GlassButtonModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(.regular.interactive())
+        } else {
+            content
         }
     }
 }

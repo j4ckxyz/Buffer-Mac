@@ -54,6 +54,18 @@ struct AboutView: View {
             Spacer()
         }
         .frame(width: 320, height: 250)
-        .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+        .modifier(AboutBackgroundModifier())
     }
 }
+
+struct AboutBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content
+        } else {
+            content
+                .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+        }
+    }
+}
+
