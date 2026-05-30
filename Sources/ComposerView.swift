@@ -563,7 +563,6 @@ struct ComposerView: View {
                                     }
                                     .buttonStyle(ScaleButtonStyle())
                                     .disabled(!canAddImages)
-                                    .glassEffect()
                                     
                                     Button(action: { selectLocalMedia(isVideo: true) }) {
                                         Image(systemName: "video")
@@ -573,7 +572,6 @@ struct ComposerView: View {
                                     }
                                     .buttonStyle(ScaleButtonStyle())
                                     .disabled(!canAddVideo)
-                                    .glassEffect()
                                     
                                     if hasClipboardSuggestion {
                                         Button(action: attachFromClipboard) {
@@ -585,7 +583,6 @@ struct ComposerView: View {
                                         .buttonStyle(ScaleButtonStyle())
                                         .keyboardShortcut("v", modifiers: [.command])
                                         .transition(.opacity.combined(with: .scale))
-                                        .glassEffect()
                                     }
                                 }
                             }
