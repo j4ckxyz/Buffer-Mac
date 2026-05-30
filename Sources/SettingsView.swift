@@ -667,6 +667,12 @@ struct TahoeTabButton: View {
 struct TahoeTabActiveModifier: ViewModifier {
     let isActive: Bool
     func body(content: Content) -> some View {
+        #if compiler(<6.2)
+        content.background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isActive ? Color.primary.opacity(0.08) : Color.clear)
+        )
+        #else
         if #available(macOS 26, *) {
             if isActive {
                 content.glassEffect(.regular)
@@ -679,6 +685,7 @@ struct TahoeTabActiveModifier: ViewModifier {
                     .fill(isActive ? Color.primary.opacity(0.08) : Color.clear)
             )
         }
+        #endif
     }
 }
 
