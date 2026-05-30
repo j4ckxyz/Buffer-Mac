@@ -73,7 +73,7 @@ struct SettingsView: View {
             .frame(maxHeight: .infinity)
         }
         .frame(width: 480, height: 280)
-        .background(Color(NSColor.windowBackgroundColor))
+        .modifier(SettingsBackgroundModifier())
         // Observe and Auto-save General settings changes in real-time
         .onChange(of: defaultMode) { _ in saveGeneralSettings() }
         .onChange(of: hotkeyModifier) { _ in saveGeneralSettings() }
@@ -155,7 +155,7 @@ struct SettingsView: View {
             .background(Color(NSColor.controlBackgroundColor).opacity(0.4))
         }
         .frame(width: 480, height: 330)
-        .background(Color(NSColor.windowBackgroundColor))
+        .modifier(SettingsBackgroundModifier())
     }
     
     // MARK: - Shared Grid Subviews (Consistent layout across designs)
@@ -247,6 +247,7 @@ struct SettingsView: View {
                                 Text("Check for Updates")
                             }
                         }
+                        .modifier(GlassButtonModifier())
                         .buttonStyle(BorderedButtonStyle())
                         .disabled(isCheckingUpdates)
                         
@@ -294,6 +295,7 @@ struct SettingsView: View {
                         GlobalHotkeyManager.shared.registerCurrentShortcut()
                         testResult = "Caches and Token reset successfully."
                     }
+                    .modifier(GlassButtonModifier())
                     .buttonStyle(BorderedButtonStyle())
                     
                     Text("Clears all cached Buffer profiles, saved text drafts, and resets global open shortcuts to ⌥ Option + Spacebar.")
@@ -662,5 +664,16 @@ struct TahoeTabButton: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct SettingsBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content
+        } else {
+            content
+                .background(Color(NSColor.windowBackgroundColor))
+        }
     }
 }

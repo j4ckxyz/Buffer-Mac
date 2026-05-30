@@ -123,7 +123,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.title = "Preferences"
         window.center()
-        window.contentViewController = NSHostingController(rootView: SettingsView())
+        
+        let hostingController = NSHostingController(rootView: SettingsView())
+        if #available(macOS 26, *) {
+            hostingController.view.wantsLayer = true
+            hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
+        }
+        window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         self.settingsWindow = window
         
@@ -146,7 +152,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.title = "About Buffer Composer"
         window.center()
-        window.contentViewController = NSHostingController(rootView: AboutView())
+        
+        let hostingController = NSHostingController(rootView: AboutView())
+        if #available(macOS 26, *) {
+            hostingController.view.wantsLayer = true
+            hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
+        }
+        window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         self.aboutWindow = window
         
