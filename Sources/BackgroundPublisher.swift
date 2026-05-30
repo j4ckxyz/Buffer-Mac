@@ -15,10 +15,8 @@ final class BackgroundPublisher: ObservableObject {
     
     @discardableResult
     func publish(
-        texts: [String],
-        mediaItems: [[String: String]],
+        posts: [PublisherPost],
         linkAsset: [String: String]?,
-        isVideo: Bool,
         selectedChannels: [String],
         channels: [BufferAPI.ChannelsResponse.Channel],
         postMode: String,
@@ -29,14 +27,19 @@ final class BackgroundPublisher: ObservableObject {
             return false
         }
         
+        guard !posts.isEmpty else {
+            debugLog("Cannot publish an empty post list.")
+            return false
+        }
+        
         isPosting = true
         
         let finalPostMode = (postMode == "forceShareNow") ? "shareNow" : postMode
-        let expectedCreatePostRequests = texts.count * selectedChannels.count
-        debugLog("Starting publish | Buffer createPost requests: \(expectedCreatePostRequests) | Segments: \(texts.count) | Profiles: \(selectedChannels.count) | Media items: \(mediaItems.count) | Link asset: \(linkAsset == nil ? "none" : "available")")
+        let expectedCreatePostRequests = posts.count * selectedChannels.count
+        debugLog("Starting publish | Buffer createPost requests: \(expectedCreatePostRequests) | Segments: \(posts.count) | Profiles: \(selectedChannels.count) | Link asset: \(linkAsset == nil ? "none" : "available")")
         
         let actionWord = finalPostMode == "shareNow" ? "Posting" : "Queueing"
-        let threadSuffix = texts.count > 1 ? " (Thread)" : ""
+        let threadSuffix = posts.count > 1 ? " (Thread)" : ""
         postingStatus = "\(actionWord) to \(selectedChannels.count) profile\(selectedChannels.count > 1 ? "s" : "")\(threadSuffix)..."
         statusIsError = false
         triggerClearComposer = false
@@ -47,41 +50,58 @@ final class BackgroundPublisher: ObservableObject {
             var successfulChannels: [String] = []
             var errors: [String] = []
             
-            for (index, textSegment) in texts.enumerated() {
-                let segmentSuffix = texts.count > 1 ? " (\(index + 1)/\(texts.count))" : ""
+            for channelId in selectedChannels {
+                guard let channel = channels.first(where: { $0.id == channelId }) else { continue }
+                let serviceLower = channel.service.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                let supportsNativeThreads = ["twitter", "x", "bluesky", "mastodon", "threads"].contains(serviceLower)
                 
-                await MainActor.run {
-                    self.postingStatus = "\(actionWord) to \(selectedChannels.count) profile\(selectedChannels.count > 1 ? "s" : "")\(segmentSuffix)..."
-                }
-                
-                for channelId in selectedChannels {
-                    do {
-                        // For the first segment in a thread, attach the media items!
-                        // For subsequent segments, do not attach the same media.
-                        let segmentMedia = index == 0 ? mediaItems : []
-                        let segmentIsVideo = index == 0 ? isVideo : false
-                        let channel = channels.first(where: { $0.id == channelId })
-                        let segmentLinkAsset = index == 0 && segmentMedia.isEmpty && channel?.service.lowercased() == "bluesky" ? linkAsset : nil
+                do {
+                    if supportsNativeThreads || posts.count <= 1 {
+                        // Native multi-post thread submission
+                        let firstPost = posts.first!
+                        let remaining = Array(posts.dropFirst())
+                        
+                        let mainIsVideo = firstPost.mediaItems.first?["isVideo"] == "true"
+                        let mainLinkAsset = (mainIsVideo || !firstPost.mediaItems.isEmpty) ? nil : linkAsset
                         
                         try await BufferAPI.shared.createPost(
                             channelId: channelId,
-                            text: textSegment,
-                            mediaItems: segmentMedia,
-                            linkAsset: segmentLinkAsset,
-                            isVideo: segmentIsVideo,
+                            text: firstPost.text,
+                            mediaItems: firstPost.mediaItems,
+                            linkAsset: mainLinkAsset,
+                            isVideo: mainIsVideo,
                             mode: finalPostMode,
-                            token: token
+                            token: token,
+                            service: channel.service,
+                            threadPosts: remaining
                         )
                         
-                        if index == 0 {
-                            completedCount += 1
-                            if let channel {
-                                successfulChannels.append(channel.name)
-                            }
+                        completedCount += 1
+                        successfulChannels.append(channel.name)
+                    } else {
+                        // Sequential posting fallback for services that do not support native threads
+                        for (index, post) in posts.enumerated() {
+                            let segmentIsVideo = post.mediaItems.first?["isVideo"] == "true"
+                            let segmentLinkAsset = (index == 0 && !segmentIsVideo && post.mediaItems.isEmpty) ? linkAsset : nil
+                            
+                            try await BufferAPI.shared.createPost(
+                                channelId: channelId,
+                                text: post.text,
+                                mediaItems: post.mediaItems,
+                                linkAsset: segmentLinkAsset,
+                                isVideo: segmentIsVideo,
+                                mode: finalPostMode,
+                                token: token,
+                                service: channel.service,
+                                threadPosts: []
+                            )
                         }
-                    } catch {
-                        errors.append(error.localizedDescription)
+                        
+                        completedCount += 1
+                        successfulChannels.append(channel.name)
                     }
+                } catch {
+                    errors.append("\(channel.name): \(error.localizedDescription)")
                 }
             }
             

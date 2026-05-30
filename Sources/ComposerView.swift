@@ -5,17 +5,61 @@ import UniformTypeIdentifiers
 struct ComposerView: View {
     let onLogout: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @FocusState private var isComposerFocused: Bool
+    @FocusState private var focusedPostIndex: Int?
     
-    // Core Composer State
-    @State private var postText = Storage.draftText {
-        didSet {
-            Storage.draftText = postText
+    struct Attachment: Identifiable, Equatable {
+        let id = UUID()
+        let localURL: URL
+        var uploadedURL: String?
+        var progress: Double = 0.0
+        var isVideo: Bool
+        var error: String? = nil
+        var altText: String = ""
+        
+        static func == (lhs: Attachment, rhs: Attachment) -> Bool {
+            lhs.id == rhs.id && lhs.localURL == rhs.localURL && lhs.uploadedURL == rhs.uploadedURL && lhs.progress == rhs.progress && lhs.isVideo == rhs.isVideo && lhs.error == rhs.error && lhs.altText == rhs.altText
         }
     }
+    
+    struct ThreadPost: Identifiable, Equatable {
+        let id: UUID
+        var text: String
+        var attachments: [Attachment]
+        
+        static func == (lhs: ThreadPost, rhs: ThreadPost) -> Bool {
+            lhs.id == rhs.id && lhs.text == rhs.text && lhs.attachments.map { $0.id } == rhs.attachments.map { $0.id }
+        }
+    }
+    
+    @State private var threadPosts: [ThreadPost] = {
+        let texts = Storage.draftThreadTexts
+        if texts.isEmpty {
+            return [ThreadPost(id: UUID(), text: "", attachments: [])]
+        } else {
+            return texts.map { ThreadPost(id: UUID(), text: $0, attachments: []) }
+        }
+    }()
+    
+    @State private var activePostIndex = 0
+    
+    private var postText: String {
+        guard activePostIndex < threadPosts.count else { return "" }
+        return threadPosts[activePostIndex].text
+    }
+    
+    private var attachments: [Attachment] {
+        get {
+            guard activePostIndex < threadPosts.count else { return [] }
+            return threadPosts[activePostIndex].attachments
+        }
+        set {
+            guard activePostIndex < threadPosts.count else { return }
+            threadPosts[activePostIndex].attachments = newValue
+        }
+    }
+    
     @State private var channels: [Storage.CachedChannel] = Storage.cachedChannels
     @State private var selectedChannels: Set<String> = Storage.selectedChannelIds
-    @State private var attachments: [Attachment] = []
     
     // UI states
     @State private var isChannelSelectorExpanded = false
@@ -41,16 +85,6 @@ struct ComposerView: View {
     
     @ObservedObject private var publisher = BackgroundPublisher.shared
     @ObservedObject private var updater = AppUpdater.shared
-    
-    struct Attachment: Identifiable {
-        let id = UUID()
-        let localURL: URL
-        var uploadedURL: String?
-        var progress: Double = 0.0
-        var isVideo: Bool
-        var error: String? = nil
-        var altText: String = ""
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -312,208 +346,231 @@ struct ComposerView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
                     
-                    // MARK: - Composer Text & Attachment Editor Area
-                    ZStack(alignment: .topLeading) {
-                        // Drag Backdrop Highlight
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isDragTargeted ? Color.blue.opacity(0.08) : Color.primary.opacity(0.03))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        isDragTargeted
-                                        ? Color.blue
-                                        : (isComposerFocused ? Color.primary.opacity(0.2) : Color.primary.opacity(0.06)),
-                                        lineWidth: isDragTargeted ? 2 : (isComposerFocused ? 1.5 : 1)
-                                    )
-                            )
-                            .animation(feedbackAnimation, value: isDragTargeted)
-                            .animation(feedbackAnimation, value: isComposerFocused)
-                        
-                        VStack(spacing: 8) {
-                            ZStack(alignment: .topLeading) {
-                                // Interactive Text Area
-                                TextEditor(text: $postText)
-                                    .font(.system(size: 13, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .padding(.top, 12)
-                                    .padding(.horizontal, 12)
-                                    .frame(height: 120)
-                                    .scrollContentBackground(.hidden)
-                                    .focused($isComposerFocused)
-                                .onChange(of: postText) { newValue in
-                                    Storage.draftText = newValue
-                                    scheduleLinkPreviewUpdate(for: newValue)
-                                    updateEmojiSuggestions(for: newValue)
+                    // MARK: - Connected Thread Visual Timeline Editor
+                    VStack(spacing: 12) {
+                        ForEach(0..<threadPosts.count, id: \.self) { index in
+                            HStack(alignment: .top, spacing: 10) {
+                                // Timeline Left Gutter
+                                VStack(spacing: 0) {
+                                    Button(action: {
+                                        activePostIndex = index
+                                        focusedPostIndex = index
+                                    }) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(activePostIndex == index ? Color.blue : Color.primary.opacity(0.06))
+                                                .frame(width: 24, height: 24)
+                                            
+                                            Text("\(index + 1)")
+                                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                                .foregroundColor(activePostIndex == index ? .white : .primary)
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    
+                                    if index < threadPosts.count - 1 {
+                                        Rectangle()
+                                            .fill(Color.primary.opacity(0.12))
+                                            .frame(width: 2)
+                                            .frame(minHeight: 40)
+                                            .padding(.vertical, 4)
+                                    }
                                 }
+                                .frame(width: 28)
                                 
-                                if postText.isEmpty {
-                                    Text("What would you like to share?")
-                                        .font(.system(size: 13, design: .rounded))
-                                        .foregroundColor(.gray.opacity(0.8))
-                                        .padding(.top, 12)
-                                        .padding(.horizontal, 17)
-                                        .allowsHitTesting(false)
-                                }
-                            }
-                            
-                            // MARK: - Media Thumbnails Drawer
-                            if !attachments.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(attachments) { item in
-                                            ZStack(alignment: .topTrailing) {
-                                                // Thumbnail image or video icon with custom selection frame
-                                                ZStack {
-                                                    if item.isVideo {
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .fill(Color.gray.opacity(0.2))
-                                                            .frame(width: 60, height: 60)
-                                                        
-                                                        Image(systemName: "video.fill")
-                                                            .font(.system(size: 18))
-                                                            .foregroundColor(.secondary)
-                                                    } else if let image = NSImage(contentsOf: item.localURL) {
-                                                        Image(nsImage: image)
-                                                            .resizable()
-                                                            .aspectRatio(contentMode: .fill)
-                                                            .frame(width: 60, height: 60)
-                                                            .clipped()
-                                                            .cornerRadius(8)
-                                                    } else {
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .fill(Color.gray.opacity(0.2))
-                                                            .frame(width: 60, height: 60)
-                                                        
-                                                        Image(systemName: "photo")
-                                                            .font(.system(size: 18))
-                                                            .foregroundColor(.secondary)
-                                                    }
-                                                    
-                                                    // Progress overlay
-                                                    if item.uploadedURL == nil && item.error == nil {
-                                                        ZStack {
-                                                            Color.black.opacity(0.5)
-                                                                .cornerRadius(8)
-                                                            
-                                                            VStack(spacing: 2) {
-                                                                ProgressView(value: item.progress)
-                                                                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                                                                    .padding(.horizontal, 8)
-                                                                    .scaleEffect(y: 0.8)
-                                                                
-                                                                Text("\(Int(item.progress * 100))%")
-                                                                    .font(.system(size: 8, weight: .bold))
-                                                                    .foregroundColor(.white)
-                                                            }
+                                // Composer Post Card Editor
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ZStack(alignment: .topLeading) {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(isDragTargeted && activePostIndex == index ? Color.blue.opacity(0.06) : Color.primary.opacity(0.03))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(
+                                                        activePostIndex == index
+                                                        ? Color.blue.opacity(0.8)
+                                                        : Color.primary.opacity(0.06),
+                                                        lineWidth: activePostIndex == index ? 1.5 : 1
+                                                    )
+                                            )
+                                        
+                                        VStack(spacing: 8) {
+                                            ZStack(alignment: .topLeading) {
+                                                TextEditor(text: Binding(
+                                                    get: { threadPosts[index].text },
+                                                    set: { val in
+                                                        threadPosts[index].text = val
+                                                        Storage.draftThreadTexts = threadPosts.map { $0.text }
+                                                        if index == activePostIndex {
+                                                            scheduleLinkPreviewUpdate(for: val)
+                                                            updateEmojiSuggestions(for: val)
                                                         }
                                                     }
-                                                    
-                                                    // Error Badge
-                                                    if let _ = item.error {
-                                                        ZStack {
-                                                            Color.black.opacity(0.6)
-                                                                .cornerRadius(8)
-                                                            Image(systemName: "exclamationmark.triangle.fill")
-                                                                .foregroundColor(.red)
-                                                                .font(.system(size: 16))
-                                                        }
-                                                    }
-                                                    
-                                                    // ALT Text Badge
-                                                    if !item.isVideo && item.uploadedURL != nil {
-                                                        VStack {
-                                                            Spacer()
-                                                            HStack {
-                                                                Text("ALT")
-                                                                    .font(.system(size: 7, weight: .black))
-                                                                    .foregroundColor(.white)
-                                                                    .padding(.horizontal, 4)
-                                                                    .padding(.vertical, 2)
-                                                                    .background(item.altText.isEmpty ? Color.black.opacity(0.6) : Color.blue)
-                                                                    .cornerRadius(4)
-                                                                Spacer()
-                                                            }
-                                                        }
-                                                        .padding(3)
-                                                    }
-                                                }
-                                                .frame(width: 60, height: 60)
-                                                .shadow(radius: 2)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(selectedAttachmentId == item.id ? Color.blue : Color.clear, lineWidth: 2)
-                                                )
-                                                .contentShape(Rectangle())
-                                                .onTapGesture {
-                                                    withAnimation(feedbackAnimation) {
-                                                        if selectedAttachmentId == item.id {
-                                                            selectedAttachmentId = nil
-                                                        } else {
-                                                            selectedAttachmentId = item.id
-                                                        }
+                                                ))
+                                                .font(.system(size: 13, design: .rounded))
+                                                .foregroundColor(.primary)
+                                                .padding(.top, 12)
+                                                .padding(.horizontal, 12)
+                                                .frame(height: 100)
+                                                .scrollContentBackground(.hidden)
+                                                .focused($focusedPostIndex, equals: index)
+                                                .onChange(of: focusedPostIndex) { val in
+                                                    if val == index {
+                                                        activePostIndex = index
                                                     }
                                                 }
                                                 
-                                                // Remove Item Button
-                                                Button(action: {
-                                                    if selectedAttachmentId == item.id {
-                                                        selectedAttachmentId = nil
-                                                    }
-                                                    removeAttachment(item.id)
-                                                }) {
-                                                    Image(systemName: "xmark.circle.fill")
-                                                        .foregroundColor(.white)
-                                                        .background(Color.black.clipShape(Circle()))
-                                                        .font(.system(size: 14))
+                                                if threadPosts[index].text.isEmpty {
+                                                    Text(index == 0 ? "What would you like to share?" : "Add another post...")
+                                                        .font(.system(size: 13, design: .rounded))
+                                                        .foregroundColor(.gray.opacity(0.8))
+                                                        .padding(.top, 12)
+                                                        .padding(.horizontal, 17)
+                                                        .allowsHitTesting(false)
                                                 }
-                                                .buttonStyle(ScaleButtonStyle())
-                                                .offset(x: 5, y: -5)
+                                            }
+                                            
+                                            // Thumbnail Drawer for this post
+                                            if !threadPosts[index].attachments.isEmpty {
+                                                ScrollView(.horizontal, showsIndicators: false) {
+                                                    HStack(spacing: 12) {
+                                                        ForEach(threadPosts[index].attachments) { item in
+                                                            ZStack(alignment: .topTrailing) {
+                                                                ZStack {
+                                                                    if item.isVideo {
+                                                                        RoundedRectangle(cornerRadius: 8)
+                                                                            .fill(Color.gray.opacity(0.2))
+                                                                            .frame(width: 50, height: 50)
+                                                                        Image(systemName: "video.fill")
+                                                                            .font(.system(size: 14))
+                                                                            .foregroundColor(.secondary)
+                                                                    } else if let image = NSImage(contentsOf: item.localURL) {
+                                                                        Image(nsImage: image)
+                                                                            .resizable()
+                                                                            .aspectRatio(contentMode: .fill)
+                                                                            .frame(width: 50, height: 50)
+                                                                            .clipped()
+                                                                            .cornerRadius(8)
+                                                                    } else {
+                                                                        RoundedRectangle(cornerRadius: 8)
+                                                                            .fill(Color.gray.opacity(0.2))
+                                                                            .frame(width: 50, height: 50)
+                                                                        Image(systemName: "photo")
+                                                                            .font(.system(size: 14))
+                                                                            .foregroundColor(.secondary)
+                                                                    }
+                                                                    
+                                                                    if item.uploadedURL == nil && item.error == nil {
+                                                                        ZStack {
+                                                                            Color.black.opacity(0.5)
+                                                                                .cornerRadius(8)
+                                                                            Text("\(Int(item.progress * 100))%")
+                                                                                .font(.system(size: 8, weight: .bold))
+                                                                                .foregroundColor(.white)
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    if item.error != nil {
+                                                                        ZStack {
+                                                                            Color.black.opacity(0.6)
+                                                                                .cornerRadius(8)
+                                                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                                                .foregroundColor(.red)
+                                                                                .font(.system(size: 14))
+                                                                        }
+                                                                    }
+                                                                }
+                                                                .frame(width: 50, height: 50)
+                                                                .shadow(radius: 1)
+                                                                
+                                                                Button(action: {
+                                                                    threadPosts[index].attachments.removeAll(where: { $0.id == item.id })
+                                                                }) {
+                                                                    Image(systemName: "xmark.circle.fill")
+                                                                        .foregroundColor(.white)
+                                                                        .background(Color.black.clipShape(Circle()))
+                                                                        .font(.system(size: 12))
+                                                                }
+                                                                .buttonStyle(PlainButtonStyle())
+                                                                .offset(x: 4, y: -4)
+                                                            }
+                                                        }
+                                                    }
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.bottom, 8)
+                                                }
+                                                .frame(height: 60)
                                             }
                                         }
                                     }
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, 12)
-                                }
-                                .frame(height: 72)
-                            }
-                            
-                            // MARK: - Inline Alt Text Editor
-                            if let selectedId = selectedAttachmentId,
-                               let index = attachments.firstIndex(where: { $0.id == selectedId }),
-                               !attachments[index].isVideo {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("ALT TEXT FOR SELECTED IMAGE")
-                                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                                        .foregroundColor(.blue)
-                                        .tracking(1.0)
+                                    .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDragTargeted) { providers in
+                                        activePostIndex = index
+                                        focusedPostIndex = index
+                                        return handleFileDrop(providers: providers)
+                                    }
                                     
-                                    TextField("Describe this image for screen readers...", text: Binding(
-                                        get: { attachments[index].altText },
-                                        set: { attachments[index].altText = $0 }
-                                    ))
-                                    .textFieldStyle(PlainTextFieldStyle())
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.primary.opacity(0.06))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
-                                    )
-                                    .foregroundColor(.primary)
-                                    .font(.system(size: 11, design: .rounded))
+                                    // Post footer actions
+                                    HStack {
+                                        if threadPosts.count > 1 {
+                                            Button(action: { removePost(at: index) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "trash")
+                                                        .font(.system(size: 10))
+                                                    Text("Delete Post")
+                                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                                }
+                                                .foregroundColor(.red.opacity(0.8))
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        let cCount = threadPosts[index].text.count
+                                        let limit = characterLimit
+                                        Text("\(cCount) / \(limit)")
+                                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                            .foregroundColor(cCount > limit ? .red : (cCount > limit - 20 ? .orange : .gray))
+                                    }
+                                    .padding(.horizontal, 4)
                                 }
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 12)
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
+                            .padding(.horizontal, 12)
                         }
-                        .padding(.bottom, 12)
+                        
+                        // Plus visual button to add to thread
+                        HStack(alignment: .center, spacing: 10) {
+                            VStack(spacing: 0) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.blue.opacity(0.08))
+                                        .frame(width: 24, height: 24)
+                                    
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .frame(width: 28)
+                            
+                            Button(action: {
+                                let newPost = ThreadPost(id: UUID(), text: "", attachments: [])
+                                threadPosts.append(newPost)
+                                Storage.draftThreadTexts = threadPosts.map { $0.text }
+                                activePostIndex = threadPosts.count - 1
+                                focusedPostIndex = threadPosts.count - 1
+                            }) {
+                                Text("Add to thread")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
                     }
-                    .padding(12)
-                    .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDragTargeted) { providers in
-                        handleFileDrop(providers: providers)
-                    }
+                    .padding(.top, 12)
                     
                     // MARK: - Character count and Add buttons panel
                     HStack {
@@ -625,19 +682,16 @@ struct ComposerView: View {
                         
                         Spacer()
                         
-                        // Character Count
-                        let count = postText.count
-                        let limit = characterLimit
-                        if isThreaded {
+                        // Character Count / Thread Indicator
+                        if threadPosts.count > 1 {
                             HStack(spacing: 4) {
-                                Text("🧵 Thread: \(threadSegments.count) posts")
+                                Text("🧵 Thread: \(threadPosts.count) posts")
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
                                     .foregroundColor(.blue)
-                                Text("(\(count) / \(limit))")
-                                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                                    .foregroundColor(.gray)
                             }
                         } else {
+                            let count = postText.count
+                            let limit = characterLimit
                             Text("\(count) / \(limit)")
                                 .font(.system(size: 10, weight: .medium, design: .rounded))
                                 .foregroundColor(count > limit ? .red : (count > limit - 20 ? .orange : .gray))
@@ -746,10 +800,28 @@ struct ComposerView: View {
                 .padding(.bottom, 16)
             }
             .background(Color.clear)
+            
+            // Invisible Keyboard Shortcuts Interceptor
+            ZStack {
+                Button(action: navigateUp) {
+                    EmptyView()
+                }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                
+                Button(action: navigateDownOrAdd) {
+                    EmptyView()
+                }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            }
+            .frame(width: 0, height: 0)
+            .opacity(0)
         }
         .onAppear {
             loadInitialSetup()
-            scheduleLinkPreviewUpdate(for: postText)
+            if let firstPost = threadPosts.first {
+                scheduleLinkPreviewUpdate(for: firstPost.text)
+            }
+            focusedPostIndex = 0
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             // Automatically scan clipboard whenever popover active state changes
@@ -767,11 +839,15 @@ struct ComposerView: View {
                 showStatus(newValue, isError: publisher.statusIsError)
             }
         }
+        .onChange(of: threadPosts) { newValue in
+            Storage.draftThreadTexts = newValue.map { $0.text }
+        }
         .onChange(of: publisher.triggerClearComposer) { newValue in
             if newValue {
-                postText = ""
-                attachments = []
-                Storage.draftText = ""
+                threadPosts = [ThreadPost(id: UUID(), text: "", attachments: [])]
+                activePostIndex = 0
+                focusedPostIndex = 0
+                Storage.draftThreadTexts = [""]
                 selectedAttachmentId = nil
                 linkPreview = nil
                 detectedLinkURL = nil
@@ -821,26 +897,31 @@ struct ComposerView: View {
     }
     
     private var isUploadingMedia: Bool {
-        attachments.contains(where: { $0.uploadedURL == nil && $0.error == nil })
+        threadPosts.contains { post in
+            post.attachments.contains { $0.uploadedURL == nil && $0.error == nil }
+        }
     }
     
     private var canAddImages: Bool {
-        // Can add image if no video is attached AND total images < 4
-        !attachments.contains(where: { $0.isVideo }) && attachments.count < 4
+        let activeAttach = threadPosts[activePostIndex].attachments
+        return !activeAttach.contains(where: { $0.isVideo }) && activeAttach.count < 4
     }
     
     private var canAddVideo: Bool {
-        // Can add video if NO attachments are currently present
-        attachments.isEmpty
+        threadPosts[activePostIndex].attachments.isEmpty
     }
     
     private var canSubmit: Bool {
-        // Must have at least one channel selected AND text composer holds content (or media is present)
-        // AND not currently posting, not currently uploading
-        !selectedChannels.isEmpty &&
-        (!postText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty) &&
-        !isPosting &&
-        !isUploadingMedia
+        guard !selectedChannels.isEmpty && !isPosting && !isUploadingMedia else { return false }
+        // Must have at least one post in the thread with content (text or media)
+        let hasContent = threadPosts.contains { post in
+            !post.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.attachments.isEmpty
+        }
+        guard hasContent else { return false }
+        
+        // Ensure no post in the thread exceeds the character limits of selected profiles
+        let limit = characterLimit
+        return !threadPosts.contains { $0.text.count > limit }
     }
     
     private var characterLimit: Int {
@@ -996,8 +1077,8 @@ struct ComposerView: View {
     
     private func addMediaAttachment(url: URL, isVideo: Bool) {
         let attachment = Attachment(localURL: url, uploadedURL: nil, progress: 0.0, isVideo: isVideo)
-        attachments.append(attachment)
-        scheduleLinkPreviewUpdate(for: postText)
+        threadPosts[activePostIndex].attachments.append(attachment)
+        scheduleLinkPreviewUpdate(for: threadPosts[activePostIndex].text)
         
         let itemId = attachment.id
         
@@ -1006,70 +1087,96 @@ struct ComposerView: View {
             do {
                 let uploadedURL = try await CatboxUploader.shared.uploadFile(at: url) { progress in
                     DispatchQueue.main.async {
-                        if let idx = attachments.firstIndex(where: { $0.id == itemId }) {
-                            attachments[idx].progress = progress
-                        }
+                        updateAttachmentProgress(id: itemId, progress: progress)
                     }
                 }
                 
                 await MainActor.run {
-                    if let idx = attachments.firstIndex(where: { $0.id == itemId }) {
-                        attachments[idx].uploadedURL = uploadedURL
-                        showStatus("Media uploaded successfully!", isError: false)
-                    }
+                    updateAttachmentSuccess(id: itemId, uploadedURL: uploadedURL)
                 }
             } catch {
                 await MainActor.run {
-                    if let idx = attachments.firstIndex(where: { $0.id == itemId }) {
-                        attachments[idx].error = error.localizedDescription
-                        showStatus("Upload failed: \(error.localizedDescription)", isError: true)
-                    }
+                    updateAttachmentFailure(id: itemId, error: error)
                 }
             }
         }
     }
     
+    private func updateAttachmentProgress(id: UUID, progress: Double) {
+        for i in 0..<threadPosts.count {
+            if let idx = threadPosts[i].attachments.firstIndex(where: { $0.id == id }) {
+                threadPosts[i].attachments[idx].progress = progress
+                return
+            }
+        }
+    }
+    
+    private func updateAttachmentSuccess(id: UUID, uploadedURL: String) {
+        for i in 0..<threadPosts.count {
+            if let idx = threadPosts[i].attachments.firstIndex(where: { $0.id == id }) {
+                threadPosts[i].attachments[idx].uploadedURL = uploadedURL
+                showStatus("Media uploaded successfully!", isError: false)
+                return
+            }
+        }
+    }
+    
+    private func updateAttachmentFailure(id: UUID, error: Error) {
+        for i in 0..<threadPosts.count {
+            if let idx = threadPosts[i].attachments.firstIndex(where: { $0.id == id }) {
+                threadPosts[i].attachments[idx].error = error.localizedDescription
+                showStatus("Upload failed: \(error.localizedDescription)", isError: true)
+                return
+            }
+        }
+    }
+    
     private func removeAttachment(_ id: UUID) {
-        attachments.removeAll(where: { $0.id == id })
-        scheduleLinkPreviewUpdate(for: postText)
+        for i in 0..<threadPosts.count {
+            if threadPosts[i].attachments.contains(where: { $0.id == id }) {
+                threadPosts[i].attachments.removeAll(where: { $0.id == id })
+                scheduleLinkPreviewUpdate(for: threadPosts[i].text)
+                return
+            }
+        }
     }
     
     // MARK: - Post Execution
-    
-    private func postToQueue() {
+      private func postToQueue() {
         guard let token = KeychainHelper.getToken(), canSubmit, !isPosting, !publisher.isPosting else { return }
         
         isPosting = true
         postingStatus = "Preparing post..."
         statusIsError = false
         
-        // Build mediaItems matching [["url": "...", "altText": "..."]]
-        var mediaItems: [[String: String]] = []
-        for item in attachments {
-            guard let url = item.uploadedURL else { continue }
-            mediaItems.append([
-                "url": url,
-                "altText": item.altText
-            ])
+        // Build the array of PublisherPost structures
+        var publisherPosts: [PublisherPost] = []
+        for post in threadPosts {
+            var postMedia: [[String: String]] = []
+            for item in post.attachments {
+                guard let url = item.uploadedURL else { continue }
+                postMedia.append([
+                    "url": url,
+                    "altText": item.altText,
+                    "isVideo": item.isVideo ? "true" : "false"
+                ])
+            }
+            publisherPosts.append(PublisherPost(text: post.text, mediaItems: postMedia))
         }
         
-        let linkAsset = mediaItems.isEmpty ? blueskyLinkAsset() : nil
-        
-        let isVideo = attachments.first?.isVideo ?? false
+        // linkAsset only applies if the main post has no media
+        let mainMediaEmpty = publisherPosts.first?.mediaItems.isEmpty ?? true
+        let linkAsset = mainMediaEmpty ? blueskyLinkAsset() : nil
         
         // Map cached channels to standard channels structure
         let apiChannels = channels.map { chan in
             BufferAPI.ChannelsResponse.Channel(id: chan.id, name: chan.name, service: chan.service)
         }
         
-        let textsToPublish = isThreaded ? threadSegments : [postText]
-        
         // Dispatch to background publisher!
         let didStartPublishing = BackgroundPublisher.shared.publish(
-            texts: textsToPublish,
-            mediaItems: mediaItems,
+            posts: publisherPosts,
             linkAsset: linkAsset,
-            isVideo: isVideo,
             selectedChannels: Array(selectedChannels),
             channels: apiChannels,
             postMode: postMode,
@@ -1080,9 +1187,6 @@ struct ComposerView: View {
             isPosting = false
             postingStatus = nil
         }
-        
-        // Keep popover open so background publish state/errors remain visible and reliable.
-        // Users can close it manually when they are done.
     }
     
     private func blueskyLinkAsset() -> [String: String]? {
@@ -1238,7 +1342,7 @@ struct ComposerView: View {
                 error: nil,
                 altText: ""
             )
-            attachments.append(attachment)
+            threadPosts[activePostIndex].attachments.append(attachment)
             showStatus("Web image attached!", isError: false)
         }
         
@@ -1276,55 +1380,40 @@ struct ComposerView: View {
         }
     }
     
-    // MARK: - Auto-Threading Logic
-    
-    private var threadSegments: [String] {
-        ComposerView.splitTextIntoThread(text: postText, limit: characterLimit)
-    }
+    // MARK: - Threading Helper Methods
     
     private var isThreaded: Bool {
-        postText.count > characterLimit
+        threadPosts.count > 1
     }
     
-    static func splitTextIntoThread(text: String, limit: Int) -> [String] {
-        guard text.count > limit else { return [text] }
+    private func removePost(at index: Int) {
+        guard threadPosts.count > 1 else { return }
+        threadPosts.remove(at: index)
+        Storage.draftThreadTexts = threadPosts.map { $0.text }
         
-        var segments: [String] = []
-        var remainingText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        while !remainingText.isEmpty {
-            if remainingText.count <= limit {
-                segments.append(remainingText)
-                break
-            }
-            
-            // We need to split. Let's find the best split point within the limit.
-            // Look for newlines first, then sentence endings, then spaces.
-            let searchString = String(remainingText.prefix(limit))
-            var splitIndex = searchString.endIndex
-            
-            if let lastNewline = searchString.lastIndex(of: "\n") {
-                splitIndex = lastNewline
-            } else if let lastPeriod = searchString.lastIndex(where: { [".", "!", "?"].contains($0) }) {
-                splitIndex = searchString.index(after: lastPeriod)
-            } else if let lastSpace = searchString.lastIndex(of: " ") {
-                splitIndex = lastSpace
-            }
-            
-            // If we couldn't find a good split point, just split exactly at the limit
-            if splitIndex == searchString.startIndex {
-                let limitIndex = remainingText.index(remainingText.startIndex, offsetBy: limit)
-                splitIndex = limitIndex
-            }
-            
-            let segment = remainingText[..<splitIndex].trimmingCharacters(in: .whitespacesAndNewlines)
-            if !segment.isEmpty {
-                segments.append(segment)
-            }
-            remainingText = remainingText[splitIndex...].trimmingCharacters(in: .whitespacesAndNewlines)
+        let newIndex = max(0, min(activePostIndex, threadPosts.count - 1))
+        activePostIndex = newIndex
+        focusedPostIndex = newIndex
+    }
+    
+    private func navigateUp() {
+        guard let current = focusedPostIndex, current > 0 else { return }
+        focusedPostIndex = current - 1
+        activePostIndex = current - 1
+    }
+    
+    private func navigateDownOrAdd() {
+        guard let current = focusedPostIndex else { return }
+        if current < threadPosts.count - 1 {
+            focusedPostIndex = current + 1
+            activePostIndex = current + 1
+        } else {
+            let newPost = ThreadPost(id: UUID(), text: "", attachments: [])
+            threadPosts.append(newPost)
+            Storage.draftThreadTexts = threadPosts.map { $0.text }
+            focusedPostIndex = current + 1
+            activePostIndex = current + 1
         }
-        
-        return segments
     }
     
     // MARK: - Emoji Picker Autocomplete Logic
@@ -1423,8 +1512,10 @@ struct ComposerView: View {
     private func selectEmoji(_ shortcode: String, emoji: String) {
         guard let query = emojiSearchQuery else { return }
         let targetToReplace = ":" + query
-        if postText.hasSuffix(targetToReplace) {
-            postText = String(postText.dropLast(targetToReplace.count)) + emoji
+        let activeText = threadPosts[activePostIndex].text
+        if activeText.hasSuffix(targetToReplace) {
+            threadPosts[activePostIndex].text = String(activeText.dropLast(targetToReplace.count)) + emoji
+            Storage.draftThreadTexts = threadPosts.map { $0.text }
         }
         
         recordEmojiUsage(shortcode)

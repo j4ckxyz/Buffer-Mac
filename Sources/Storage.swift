@@ -24,6 +24,18 @@ struct Storage {
         }
     }
     
+    static var draftThreadTexts: [String] {
+        get {
+            return UserDefaults.standard.stringArray(forKey: "composer_draft_thread_texts") ?? [draftText]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "composer_draft_thread_texts")
+            if let first = newValue.first {
+                draftText = first
+            }
+        }
+    }
+    
     struct CachedChannel: Codable, Identifiable, Hashable {
         let id: String
         let name: String

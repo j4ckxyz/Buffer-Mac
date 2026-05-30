@@ -692,8 +692,7 @@ struct TahoeTabActiveModifier: ViewModifier {
 struct SettingsBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
-            content
-                .background(.ultraThinMaterial)
+            content // transparent — window glass handles it
         } else {
             content
                 .background(Color(NSColor.windowBackgroundColor))

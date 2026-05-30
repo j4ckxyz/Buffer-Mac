@@ -1,5 +1,10 @@
 import Foundation
 
+struct PublisherPost: Codable {
+    let text: String
+    let mediaItems: [[String: String]] // Each contains "url", "altText", and optionally "isVideo"
+}
+
 final class BufferAPI {
     static let shared = BufferAPI()
     private let endpoint = URL(string: "https://api.buffer.com")!
@@ -176,7 +181,9 @@ final class BufferAPI {
         linkAsset: [String: String]? = nil,
         isVideo: Bool,
         mode: String = "shareNow", // Default to immediate sharing
-        token: String
+        token: String,
+        service: String,
+        threadPosts: [PublisherPost] = []
     ) async throws {
         let query = """
         mutation CreateAppPost($input: CreatePostInput!) {
@@ -246,6 +253,52 @@ final class BufferAPI {
         
         if !assetsPayload.isEmpty {
             inputVariables["assets"] = assetsPayload
+        }
+        
+        // Native Thread Support Metadata
+        if !threadPosts.isEmpty {
+            let serviceLower = service.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if ["twitter", "x", "bluesky", "mastodon", "threads"].contains(serviceLower) {
+                let serviceKey = (serviceLower == "x") ? "twitter" : serviceLower
+                
+                var threadPostsPayload: [[String: Any]] = []
+                for post in threadPosts {
+                    var postDict: [String: Any] = [
+                        "text": post.text
+                    ]
+                    
+                    var postAssets: [[String: Any]] = []
+                    if !post.mediaItems.isEmpty {
+                        let postIsVideo = post.mediaItems.first?["isVideo"] == "true"
+                        if postIsVideo, let firstVideo = post.mediaItems.first, let url = firstVideo["url"] {
+                            postAssets.append([
+                                "video": [
+                                    "url": url
+                                ]
+                            ])
+                        } else {
+                            for item in post.mediaItems {
+                                guard let url = item["url"] else { continue }
+                                var imgDict: [String: Any] = ["url": url]
+                                if let alt = item["altText"], !alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    imgDict["metadata"] = ["altText": alt]
+                                }
+                                postAssets.append([
+                                    "image": imgDict
+                                ])
+                            }
+                        }
+                    }
+                    postDict["assets"] = postAssets
+                    threadPostsPayload.append(postDict)
+                }
+                
+                inputVariables["metadata"] = [
+                    serviceKey: [
+                        "thread": threadPostsPayload
+                    ]
+                ]
+            }
         }
         
         let response: CreatePostResponse = try await performGraphQLQuery(
