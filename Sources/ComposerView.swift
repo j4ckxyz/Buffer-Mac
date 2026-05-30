@@ -511,6 +511,40 @@ struct ComposerView: View {
                     // MARK: - Character count and Add buttons panel
                     HStack {
                         // Media Add Utilities
+                        #if compiler(<6.2)
+                        HStack(spacing: 12) {
+                            Button(action: { selectLocalMedia(isVideo: false) }) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(canAddImages ? .blue : Color(NSColor.disabledControlTextColor))
+                                    .help("Attach images (up to 4)")
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                            .disabled(!canAddImages)
+                            
+                            Button(action: { selectLocalMedia(isVideo: true) }) {
+                                Image(systemName: "video")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(canAddVideo ? .blue : Color(NSColor.disabledControlTextColor))
+                                    .help("Attach a video (up to 1)")
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                            .disabled(!canAddVideo)
+                            
+                            if hasClipboardSuggestion {
+                                Button(action: attachFromClipboard) {
+                                    Image(systemName: "doc.on.clipboard.fill")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.blue)
+                                        .help("Paste media from clipboard (Cmd+V) - \(clipboardMessage)")
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+                                .keyboardShortcut("v", modifiers: [.command])
+                                .transition(.opacity.combined(with: .scale))
+                            }
+                        }
+                        .padding(.horizontal, 6)
+                        #else
                         if #available(macOS 26, *) {
                             GlassEffectContainer {
                                 HStack(spacing: 12) {
@@ -583,6 +617,7 @@ struct ComposerView: View {
                             }
                             .padding(.horizontal, 6)
                         }
+                        #endif
                         
                         Spacer()
                         
@@ -1606,10 +1641,14 @@ struct ScaleButtonStyle: ButtonStyle {
 
 struct GlassButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
+        #if compiler(<6.2)
+        content
+        #else
         if #available(macOS 26, *) {
             content.glassEffect(.regular.interactive())
         } else {
             content
         }
+        #endif
     }
 }
