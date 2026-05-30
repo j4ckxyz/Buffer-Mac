@@ -67,6 +67,7 @@ jobs:
           files: Buffer-Mac.dmg
           tag_name: v${{ steps.get_version.outputs.version }}
           name: Version ${{ steps.get_version.outputs.version }}
+          make_latest: true
           draft: false
           prerelease: false
           body: |
@@ -79,14 +80,14 @@ jobs:
             3. Right-click the app in `/Applications` and select **Open** to authorise Gatekeeper, or go to **System Settings > Privacy & Security** and select **Open Anyway**.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+ 
       - name: Create Rolling Release (Push main)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           files: Buffer-Mac.dmg
           tag_name: latest
-          make_latest: true
+          make_latest: false
           name: Latest Rolling Build
           body: |
             This is the rolling build matching the latest commit on main, representing Version ${{ steps.get_version.outputs.version }}.
