@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover!
     private var eventMonitor: EventMonitor?
     public var isShowingOpenPanel = false
+    private var autoUpdateTimer: Timer?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[BufferMenubar] App launched, initializing components...")
@@ -20,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.togglePopover(nil)
         }
         GlobalHotkeyManager.shared.registerCurrentShortcut()
+        
+        // Start automatic update checks in the background
+        startAutoUpdateTimer()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -128,6 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if #available(macOS 26, *) {
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
+            window.backgroundColor = .clear
+            window.isOpaque = false
         }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
@@ -157,6 +163,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if #available(macOS 26, *) {
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
+            window.backgroundColor = .clear
+            window.isOpaque = false
         }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
@@ -203,6 +211,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem.button else { return }
         print("[BufferMenubar] Showing popover...")
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if #available(macOS 26, *) {
+            if let popoverWindow = popover.contentViewController?.view.window {
+                popoverWindow.backgroundColor = .clear
+                popoverWindow.isOpaque = false
+            }
+        }
         popover.contentViewController?.view.window?.makeKey()
         eventMonitor?.start()
     }
@@ -220,6 +234,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("[BufferMenubar] Toggling popover: Opening...")
             showPopover()
         }
+    }
+    
+    private func startAutoUpdateTimer() {
+        // Run silent update check immediately 10 seconds after launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            self?.performSilentUpdateCheckIfNeeded()
+        }
+        
+        // Schedule recurring checks every 1 hour (3600 seconds)
+        autoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            self?.performSilentUpdateCheckIfNeeded()
+        }
+    }
+    
+    private func performSilentUpdateCheckIfNeeded() {
+        // Verify we are not currently posting and the popover (where writing happens) is closed
+        guard !BackgroundPublisher.shared.isPosting else {
+            print("[BufferMenubar] Auto-updater: Skipped check because a background publish is in progress.")
+            return
+        }
+        
+        guard !popover.isShown else {
+            print("[BufferMenubar] Auto-updater: Skipped check because the composer popover is active (user might be writing).")
+            return
+        }
+        
+        print("[BufferMenubar] Auto-updater: Triggering silent background update check...")
+        AppUpdater.shared.checkForUpdatesAndInstall(silentOnNoUpdate: true)
     }
 }
 
