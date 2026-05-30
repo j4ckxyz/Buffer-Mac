@@ -131,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         let hostingController = TransparentHostingController(rootView: SettingsView())
         if #available(macOS 26, *) {
+            window.styleMask.insert(.fullSizeContentView)
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
             window.backgroundColor = .clear
@@ -163,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         let hostingController = TransparentHostingController(rootView: AboutView())
         if #available(macOS 26, *) {
+            window.styleMask.insert(.fullSizeContentView)
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
             window.backgroundColor = .clear
