@@ -731,15 +731,20 @@ struct ComposerView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
-                        canSubmit
-                        ? Color.blue
-                        : Color.primary.opacity(0.1)
+                        Group {
+                            if #available(macOS 26, *) {
+                                Color.clear
+                            } else {
+                                canSubmit ? Color.blue : Color.primary.opacity(0.1)
+                            }
+                        }
                     )
                     .cornerRadius(10)
                 }
                 .modifier(GlassButtonModifier())
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(!canSubmit || isPosting)
+                .keyboardShortcut(.return, modifiers: [.command])
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
