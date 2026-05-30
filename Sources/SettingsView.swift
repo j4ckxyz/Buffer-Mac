@@ -31,7 +31,7 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - macOS 16+ Tahoe Native View (Borderless & Capsule-style tabs)
+    // MARK: - macOS 26+ Tahoe Native View (Borderless & Capsule-style tabs)
     @ViewBuilder
     private var tahoeBody: some View {
         VStack(spacing: 0) {
@@ -639,7 +639,7 @@ struct TabButton: View {
     }
 }
 
-// MARK: - macOS 16+ Tahoe Visual Toolbar TabButton Subview
+// MARK: - macOS 26+ Tahoe Visual Toolbar TabButton Subview
 
 struct TahoeTabButton: View {
     let title: String

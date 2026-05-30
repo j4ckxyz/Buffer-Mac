@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.behavior = .transient
         
         let contentView = BufferMenubarView()
-        let hostingController = NSHostingController(rootView: contentView)
+        let hostingController = TransparentHostingController(rootView: contentView)
         
         if #available(macOS 26, *) {
             // Ensure the hosting view doesn't draw an opaque background that blocks Liquid Glass
@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Preferences"
         window.center()
         
-        let hostingController = NSHostingController(rootView: SettingsView())
+        let hostingController = TransparentHostingController(rootView: SettingsView())
         if #available(macOS 26, *) {
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "About Buffer Composer"
         window.center()
         
-        let hostingController = NSHostingController(rootView: AboutView())
+        let hostingController = TransparentHostingController(rootView: AboutView())
         if #available(macOS 26, *) {
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
@@ -291,5 +291,28 @@ final class EventMonitor {
         guard let currentMonitor = monitor else { return }
         NSEvent.removeMonitor(currentMonitor)
         monitor = nil
+    }
+}
+
+// MARK: - Transparent NSHostingController Subclass
+final class TransparentHostingController<Content: View>: NSHostingController<Content> {
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        if #available(macOS 26, *) {
+            if let window = view.window {
+                window.backgroundColor = .clear
+                window.isOpaque = false
+            }
+        }
+    }
+    
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        if #available(macOS 26, *) {
+            if let window = view.window {
+                window.backgroundColor = .clear
+                window.isOpaque = false
+            }
+        }
     }
 }
