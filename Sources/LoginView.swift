@@ -268,7 +268,24 @@ struct LoginView: View {
         Task {
             do {
                 let account = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: cleanToken)
+                
+                // Fetch and cache all channels immediately to avoid redundant API calls later
+                var allChannels: [Storage.CachedChannel] = []
+                for org in account.organizations {
+                    let orgChannels = try await BufferAPI.shared.fetchChannels(forOrganizationId: org.id, token: cleanToken)
+                    for item in orgChannels {
+                        allChannels.append(Storage.CachedChannel(id: item.id, name: item.name, service: item.service))
+                    }
+                }
+                
                 await MainActor.run {
+                    Storage.cachedChannels = allChannels
+                    
+                    // Pre-select the first channel if no channels are currently selected
+                    if Storage.selectedChannelIds.isEmpty, let first = allChannels.first {
+                        Storage.selectedChannelIds = [first.id]
+                    }
+                    
                     isLoading = false
                     Storage.userEmail = account.email
                     onLoginSuccess(cleanToken)

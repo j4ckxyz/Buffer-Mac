@@ -83,6 +83,8 @@ struct SettingsView: View {
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 KeychainHelper.deleteToken()
                 Storage.userEmail = ""
+                Storage.cachedChannels = []
+                Storage.selectedChannelIds = []
                 testResult = nil
             }
         }
@@ -465,9 +467,26 @@ struct SettingsView: View {
         Task {
             do {
                 let account = try await BufferAPI.shared.verifyTokenAndGetOrganizations(token: cleanToken)
+                
+                // Fetch and cache the channels right now to prevent redundant future calls!
+                var allChannels: [Storage.CachedChannel] = []
+                for org in account.organizations {
+                    let orgChannels = try await BufferAPI.shared.fetchChannels(forOrganizationId: org.id, token: cleanToken)
+                    for item in orgChannels {
+                        allChannels.append(Storage.CachedChannel(id: item.id, name: item.name, service: item.service))
+                    }
+                }
+                
                 await MainActor.run {
                     isTesting = false
                     Storage.userEmail = account.email
+                    Storage.cachedChannels = allChannels
+                    
+                    // If selection is empty, auto-check the first available profile
+                    if Storage.selectedChannelIds.isEmpty, let first = allChannels.first {
+                        Storage.selectedChannelIds = [first.id]
+                    }
+                    
                     KeychainHelper.saveToken(cleanToken) // Auto-save verified token!
                     testResult = "Success: Connected as \(account.email)"
                 }
