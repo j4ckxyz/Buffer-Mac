@@ -24,7 +24,7 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        if #available(macOS 16.0, *) {
+        if #available(macOS 26, *) {
             tahoeBody
         } else {
             legacyBody
@@ -658,20 +658,34 @@ struct TahoeTabButton: View {
                     .foregroundColor(isActive ? .primary : .secondary)
             }
             .frame(width: 76, height: 44)
-            .background(
+            .modifier(TahoeTabActiveModifier(isActive: isActive))
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct TahoeTabActiveModifier: ViewModifier {
+    let isActive: Bool
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            if isActive {
+                content.glassEffect(.regular)
+            } else {
+                content
+            }
+        } else {
+            content.background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isActive ? Color.primary.opacity(0.08) : Color.clear)
             )
         }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 
 struct SettingsBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
-            content
-                .background(.ultraThinMaterial)
+            content // transparent — window glass handles it
         } else {
             content
                 .background(Color(NSColor.windowBackgroundColor))

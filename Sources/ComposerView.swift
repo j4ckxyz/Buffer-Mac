@@ -122,8 +122,7 @@ struct ComposerView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.primary.opacity(0.08))
-                    .cornerRadius(20)
+                    .modifier(ProfilePillModifier())
                 }
                 .buttonStyle(ScaleButtonStyle())
                 
@@ -140,7 +139,15 @@ struct ComposerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
+            .background(
+                Group {
+                    if #available(macOS 26, *) {
+                        Color.clear
+                    } else {
+                        Color(NSColor.windowBackgroundColor).opacity(0.4)
+                    }
+                }
+            )
             
             // MARK: - Expanded Channel Checklist Dropdown
             if isChannelSelectorExpanded {
@@ -1648,6 +1655,25 @@ struct GlassButtonModifier: ViewModifier {
             content.glassEffect(.regular.interactive())
         } else {
             content
+        }
+        #endif
+    }
+}
+
+struct ProfilePillModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        #if compiler(<6.2)
+        content
+            .background(Color.primary.opacity(0.08))
+            .cornerRadius(20)
+        #else
+        if #available(macOS 26, *) {
+            content
+                .glassEffect(.regular.interactive())
+        } else {
+            content
+                .background(Color.primary.opacity(0.08))
+                .cornerRadius(20)
         }
         #endif
     }
