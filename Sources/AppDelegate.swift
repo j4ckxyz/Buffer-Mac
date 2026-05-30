@@ -62,7 +62,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.behavior = .transient
         
         let contentView = BufferMenubarView()
-        popover.contentViewController = NSHostingController(rootView: contentView)
+        let hostingController = NSHostingController(rootView: contentView)
+        
+        if #available(macOS 26, *) {
+            // Ensure the hosting view doesn't draw an opaque background that blocks Liquid Glass
+            hostingController.view.wantsLayer = true
+            hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
+        }
+        
+        popover.contentViewController = hostingController
         self.popover = popover
     }
     
